@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import ChatWindow from '../components/ChatWindow';
 import MorningBanner from '../components/MorningBanner';
+import HabitTracker from '../components/HabitTracker';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000';
 const USER_ID = 'demo-user-001';
@@ -72,11 +73,7 @@ export default function Home() {
         )}
 
         {tab === 'habits' && (
-          <div className="placeholder-tab">
-            <span className="placeholder-emoji">🌱</span>
-            <p className="placeholder-title">Habit Tracker</p>
-            <p className="placeholder-sub">Coming in Phase 5 — Grove agent</p>
-          </div>
+          <HabitTracker userId={USER_ID} />
         )}
 
         {tab === 'insights' && (

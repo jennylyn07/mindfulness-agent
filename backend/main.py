@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 
-from backend.api import chat, habits, mood
+from backend.api import chat, habits, mood, journal
 
 load_dotenv()
 
@@ -26,8 +26,8 @@ app.add_middleware(
 app.include_router(chat.router)
 app.include_router(habits.router)
 app.include_router(mood.router)
-# journal.router — added Hour 5 (GET /journal)
-# insights.router — added Hour 7 (GET /insights)
+app.include_router(journal.router)
+# insights.router — added Phase 7 (GET /insights)
 
 
 @app.get("/health")

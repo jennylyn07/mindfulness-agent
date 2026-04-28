@@ -672,3 +672,90 @@ code, pre, .font-mono {
   font-size: 0.8rem;
   color: var(--text-muted);
 }
+
+/* ── Habit Tracker ───────────────────────────────────────── */
+.habit-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  overflow-y: auto;
+  flex: 1;
+  padding-right: 0.25rem;
+}
+
+.habit-list-date {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  padding: 0 0.25rem 0.25rem;
+}
+
+.habit-card {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: white;
+  border-radius: 16px;
+  padding: 0.85rem 1rem;
+  box-shadow: var(--clay-up);
+  transition: all 0.2s ease;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.habit-card.done {
+  background: var(--sage-pale);
+  box-shadow: var(--clay-in);
+}
+
+.habit-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.habit-name {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-dark);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.habit-card.done .habit-name {
+  color: var(--sage-deep);
+}
+
+.habit-reason {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.habit-streak {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-shrink: 0;
+  min-width: 36px;
+}
+
+.streak-number {
+  font-family: 'DM Serif Display', serif;
+  font-size: 1.1rem;
+  color: var(--sage-deep);
+  line-height: 1;
+}
+
+.streak-label {
+  font-size: 0.62rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}

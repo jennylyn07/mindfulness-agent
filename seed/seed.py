@@ -22,7 +22,8 @@ from datetime import datetime, timedelta, timezone
 from azure.cosmos import CosmosClient, PartitionKey
 from dotenv import load_dotenv
 
-load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "..", "backend", ".env"))
+_env_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "backend", ".env"))
+load_dotenv(dotenv_path=_env_path)
 
 ENDPOINT = os.getenv("COSMOS_ENDPOINT")
 KEY = os.getenv("COSMOS_KEY")
@@ -30,7 +31,8 @@ DB_NAME = os.getenv("COSMOS_DB_NAME", "mindflow")
 USER_ID = os.getenv("DEMO_USER_ID", "demo-user-001")
 
 if not ENDPOINT or not KEY:
-    print("❌ COSMOS_ENDPOINT and COSMOS_KEY must be set in backend/.env")
+    print("[ERROR] COSMOS_ENDPOINT and COSMOS_KEY must be set in backend/.env")
+    print(f"[DEBUG] Looking for .env at: {_env_path}")
     sys.exit(1)
 
 

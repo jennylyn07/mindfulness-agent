@@ -24,7 +24,7 @@ from semantic_kernel.contents import ChatHistory
 
 from backend.models.schemas import ChatRequest
 from backend.agents import orchestrator, memory_agent
-from backend.agents import mindfulness_agent, journal_agent
+from backend.agents import mindfulness_agent, journal_agent, habit_agent
 from backend.providers import cosmos_repository as db
 
 router = APIRouter()
@@ -39,8 +39,9 @@ def _get_specialist(agent_name: str, memory_context: str):
     """Return the correct ChatCompletionAgent for the classified intent."""
     if agent_name == "mindfulness":
         return mindfulness_agent.get_agent(memory_context)
-    # habit and insights agents added in Hours 5–8
-    # grove_agent and lumen_agent imported when built
+    if agent_name == "habit":
+        return habit_agent.get_agent(memory_context)
+    # insights_agent added in Phase 7
     return journal_agent.get_agent(memory_context)  # default + journal
 
 
