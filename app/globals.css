@@ -1,0 +1,365 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Design Tokens ─────────────────────────────────────── */
+:root {
+  --sage: #7BA08A;
+  --sage-light: #A8C4B2;
+  --sage-pale: #D8EAE0;
+  --sage-deep: #4E7A62;
+
+  --lavender: #9B8EC4;
+  --lavender-light: #C0B6E0;
+  --lavender-pale: #E8E4F4;
+
+  --accent: #E8854A;
+  --accent-pale: #FAE8D8;
+
+  --sky: #5BA8CA;
+  --sky-pale: #DFF0FA;
+
+  --memory: #4E7A62;
+  --memory-pale: #E8F4EC;
+
+  --cream: #F5F2EC;
+  --warm-white: #FAFAF7;
+
+  --text-dark: #2C3E35;
+  --text-mid: #5A6B62;
+  --text-muted: #8A9E94;
+
+  --border: rgba(120, 160, 138, 0.2);
+
+  /* Clay shadow system — cream background is required for these to render correctly */
+  --clay-up: 6px 6px 16px rgba(0, 0, 0, 0.08), -3px -3px 10px rgba(255, 255, 255, 0.9);
+  --clay-in: inset 3px 3px 8px rgba(0, 0, 0, 0.07), inset -2px -2px 6px rgba(255, 255, 255, 0.8);
+}
+
+/* ── Base ──────────────────────────────────────────────── */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+/* Cream background is REQUIRED — clay shadows only show depth against this color */
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--cream);
+  color: var(--text-dark);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── Typography ────────────────────────────────────────── */
+h1, h2, h3 {
+  font-family: 'DM Serif Display', serif;
+}
+
+code, pre, .font-mono {
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* ── Clay Component Classes ────────────────────────────── */
+
+/* Raised card — default resting state */
+.clay-raised {
+  background: white;
+  border-radius: 20px;
+  box-shadow: var(--clay-up);
+}
+
+/* Inset — pressed, selected, or active state */
+.clay-inset {
+  box-shadow: var(--clay-in);
+}
+
+/* Subtle card variant */
+.clay-card {
+  background: white;
+  border-radius: 16px;
+  box-shadow: var(--clay-up);
+  padding: 1.25rem;
+}
+
+/* ── Agent Badge Colors ─────────────────────────────────── */
+.badge-mindfulness {
+  background: var(--sage-pale);
+  color: var(--sage-deep);
+}
+
+.badge-journal {
+  background: var(--lavender-pale);
+  color: #5B4D8F;
+}
+
+.badge-habit {
+  background: var(--accent-pale);
+  color: #8B4A20;
+}
+
+.badge-insights {
+  background: var(--sky-pale);
+  color: #1A6A9A;
+}
+
+/* ── Scrollbar ─────────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--cream);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--sage-pale);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--sage-light);
+}
+
+/* ── Animations ────────────────────────────────────────── */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulse-soft {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.5; }
+}
+
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.25s ease-out forwards;
+}
+
+/* Typing indicator dots */
+.typing-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--sage);
+  animation: pulse-soft 1.2s ease-in-out infinite;
+}
+
+.typing-dot:nth-child(2) { animation-delay: 0.2s; }
+.typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+/* Loading skeleton shimmer */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--sage-pale) 25%,
+    #e8f0ec 50%,
+    var(--sage-pale) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 8px;
+}
+
+/* ── Mood Button ────────────────────────────────────────── */
+.mood-btn {
+  flex: 1;
+  border-radius: 12px;
+  padding: 0.5rem 0.25rem;
+  text-align: center;
+  background: white;
+  border: none;
+  cursor: pointer;
+  box-shadow: var(--clay-up);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  font-size: 1.1rem;
+}
+
+.mood-btn:hover {
+  transform: scale(1.05);
+}
+
+.mood-btn.selected {
+  box-shadow: var(--clay-in);
+  background: var(--sage-pale);
+}
+
+/* ── Habit Checkbox ─────────────────────────────────────── */
+.habit-check {
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  flex-shrink: 0;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.habit-check.done {
+  background: var(--sage-pale);
+  color: var(--sage-deep);
+  box-shadow: var(--clay-in);
+}
+
+.habit-check.todo {
+  background: var(--cream);
+  color: var(--text-muted);
+  border: 1.5px solid var(--border);
+  box-shadow: var(--clay-up);
+}
+
+.habit-check.todo:hover {
+  transform: scale(1.08);
+  border-color: var(--sage);
+}
+
+/* ── Chat Bubbles ───────────────────────────────────────── */
+.bubble-ai {
+  background: var(--sage-pale);
+  color: var(--sage-deep);
+  border-radius: 18px 18px 18px 4px;
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
+  line-height: 1.6;
+  max-width: 85%;
+}
+
+.bubble-user {
+  background: var(--lavender-pale);
+  color: #5B4D8F;
+  border-radius: 18px 18px 4px 18px;
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
+  line-height: 1.6;
+  max-width: 85%;
+  margin-left: auto;
+  text-align: right;
+}
+
+/* ── Tab Navigation ─────────────────────────────────────── */
+.tab-bar {
+  display: flex;
+  gap: 0.25rem;
+  background: var(--cream);
+  border-radius: 14px;
+  padding: 0.3rem;
+  box-shadow: var(--clay-in);
+}
+
+.tab-item {
+  flex: 1;
+  border-radius: 10px;
+  padding: 0.5rem 0.25rem;
+  text-align: center;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  transition: all 0.2s ease;
+}
+
+.tab-item.active {
+  background: white;
+  color: var(--sage-deep);
+  box-shadow: var(--clay-up);
+}
+
+/* ── Progress Bar ───────────────────────────────────────── */
+.progress-track {
+  background: var(--cream);
+  border-radius: 99px;
+  height: 6px;
+  box-shadow: var(--clay-in);
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 6px;
+  border-radius: 99px;
+  background: linear-gradient(90deg, var(--sage), var(--sage-light));
+  transition: width 0.4s ease;
+}
+
+/* ── Morning Banner ─────────────────────────────────────── */
+.morning-banner {
+  background: linear-gradient(135deg, var(--sage-pale), var(--lavender-pale));
+  border-radius: 16px;
+  padding: 1rem 1.25rem;
+  border-left: 4px solid var(--sage);
+  box-shadow: var(--clay-up);
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* ── Input ──────────────────────────────────────────────── */
+.chat-input-wrap {
+  background: var(--cream);
+  border-radius: 14px;
+  padding: 0.5rem 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  box-shadow: var(--clay-in);
+}
+
+.chat-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.875rem;
+  color: var(--text-dark);
+  resize: none;
+  line-height: 1.5;
+}
+
+.chat-input::placeholder {
+  color: var(--text-muted);
+}
+
+.send-btn {
+  width: 32px;
+  height: 32px;
+  background: var(--sage);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  border: none;
+  cursor: pointer;
+  font-size: 0.875rem;
+  box-shadow: var(--clay-up);
+  transition: transform 0.15s ease, background 0.15s ease;
+  flex-shrink: 0;
+}
+
+.send-btn:hover {
+  transform: scale(1.05);
+  background: var(--sage-deep);
+}
+
+.send-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
