@@ -170,3 +170,114 @@ We use `ensure_future()` instead of `create_task()` because `ensure_future()` is
 ---
 
 *Next: Phase 3–4 — Orchestrator + Sage + River + Streaming Pipeline*
+
+---
+
+---
+
+## Phase 3–4 — Orchestrator + Sage + River + Streaming Pipeline
+
+### Dev Log
+
+**What we set out to do**
+Build the entire chat pipeline end-to-end: Orchestrator classification → Memory READ → specialist agent → streaming response → SAVE_ENTRY buffer parser → Memory WRITE. Wire frontend to NEXT_PUBLIC_API_URL with full streaming via `getReader()`.
+
+**What got built**
+
+*Backend prompts*
+- `backend/prompts/orchestrator.py` — JSON mode classification prompt. Returns `{agent, confidence, mood, urgency}`. Falls back to "journal" when intent is unclear. No prose output.
+- `backend/prompts/mindfulness.py` — Sage system prompt verbatim from blueprint. Urgency-tiered responses (high/medium/low), 5 grounding exercises defined, `{memoryContext}` injection point.
+- `backend/prompts/journal.py` — River system prompt. Reflective journaling companion. Includes D1 SAVE_ENTRY block directive at absolute end with explicit format and placement rules.
+
+*Backend agents*
+- `backend/agents/orchestrator.py` — `classify(message)` using direct Azure OpenAI in JSON mode, temperature=0. Silent fallback to `OrchestratorResult(agent="journal")` on any exception.
+- `backend/agents/mindfulness_agent.py` — `get_agent(memory_context)` builds `ChatCompletionAgent` with Sage instructions + injected memory context.
+- `backend/agents/journal_agent.py` — same pattern for River.
+
+*Backend API routes*
+- `backend/api/chat.py` — `POST /chat`. Full pipeline: Orchestrator → Memory READ → agent routing → `invoke_stream()` → SAVE_ENTRY buffer strip → `_parse_and_save_entry()` via `ensure_future` → Memory WRITE via `ensure_future`. Yields `[AGENT:xxx]` as first token so frontend can show the correct badge.
+- `backend/api/habits.py` — 3 proxy routes (`GET`, `POST`, `PATCH /habits/{id}/log`) via `httpx.AsyncClient`. Proxies to `FUNCTIONS_HABIT_URL`. Frontend never calls Azure Functions directly (Fix 1).
+- `backend/api/mood.py` — `POST /mood` proxy to `FUNCTIONS_MOOD_URL`.
+- `backend/main.py` — updated: all 3 routers registered. `journal.router` and `insights.router` commented in for Hours 5/7.
+
+*Frontend components*
+- `frontend/components/AgentBadge.tsx` — maps agent name to label, emoji, and color. Shows animated dot while streaming.
+- `frontend/components/MorningBanner.tsx` — time-aware greeting, one-tap emoji mood check-in, fires `onMoodSelect`.
+- `frontend/components/ChatWindow.tsx` — streaming chat with `fetch + getReader()` (D3). Parses `[AGENT:xxx]` prefix from first chunk. Accumulates chunks into live-updating bubble. Shows typing indicator while streaming. Suggestion chips on empty state.
+- `frontend/app/page.tsx` — three-tab shell (Chat / Habits / Insights). Morning banner with mood tap → `POST /mood`. Habits and Insights tabs show placeholders until Phase 5/7.
+- `frontend/app/globals.css` — extended with all missing classes: `.app-shell`, `.tab-nav`, `.tab-btn`, `.chat-window`, `.bubble`, `.agent-badge`, `.typing-indicator`, `.chat-input-row`, `.suggestion-chip`, `.placeholder-tab`, morning banner internals.
+
+**What broke and how it was fixed**
+
+| Problem | Fix |
+|---------|-----|
+| `globals.css` had `.tab-bar`/`.tab-item` but components used `.tab-nav`/`.tab-btn` | Added correct class names to CSS. Old classes left in place (they don't conflict). |
+| `globals.css` had `.bubble-ai`/`.bubble-user` but ChatWindow used `.bubble.assistant`/`.bubble.user` | Added `.bubble`, `.bubble.assistant`, `.bubble.user` modifier classes. |
+| SK `invoke_stream` return type uncertain across versions | Wrote defensive handler: checks `isinstance(chunk, list)` first, falls back to `.content` attribute. |
+| `chat.py` needed `_parse_and_save_entry` to not block the stream | Used `asyncio.ensure_future()` — same pattern as Memory WRITE. |
+
+**Commit**
+- `feat: add Orchestrator, Sage, River with FastAPI streaming pipeline`
+
+---
+
+### Learning Report (Plain Language)
+
+**What is the Orchestrator and why does it run first?**
+
+Every message the user sends goes through the Orchestrator before anything else. Its only job is to classify the intent into one of four categories: mindfulness, journal, habit, or insights. It's like a receptionist who reads your message and decides which specialist you need to see.
+
+It runs in JSON mode at temperature=0, which means the model gives a deterministic structured response instead of free-form text. This is intentional — you want classification to be fast, consistent, and machine-readable. The target is under 300ms.
+
+If the classification fails for any reason (network timeout, malformed JSON), it falls back to "journal" silently. The user never sees an error.
+
+**What is the streaming pipeline in plain terms?**
+
+When you type a message:
+1. The Orchestrator reads it and classifies it in ~200ms
+2. The Memory Agent reads your history from the database and assembles a context paragraph
+3. That context is injected into the specialist agent's instructions (so Sage "knows you")
+4. The specialist agent (Sage, River, etc.) starts generating a response word by word
+5. Each word chunk is sent to your browser immediately as it arrives — you see the response appearing in real time, like watching someone type
+6. At the end, the Memory Agent reads the full exchange and decides what new facts to store — this happens in the background, you don't wait for it
+
+**Why does the `[AGENT:xxx]` token appear at the start of the stream?**
+
+The frontend needs to show the correct agent badge (Sage/River/Grove/Lumen) as soon as the response starts. But the streaming response is just a plain text stream — there's no HTTP header or metadata attached to each chunk.
+
+The solution: the backend yields `[AGENT:journal]\n` as the very first chunk before any actual content. The frontend's reader detects this pattern, strips it out, and sets the badge. The user never sees it in the bubble.
+
+**What is `asyncio.ensure_future()` and why is it used twice?**
+
+Both the SAVE_ENTRY parsing and the Memory WRITE happen after the streaming response is sent. If we `await` them, the user would have to wait for them to finish before the response is "done." That adds latency to every message.
+
+`ensure_future()` schedules these tasks to run in the background — they start executing after the stream finishes, but the user's browser receives the "stream done" signal immediately. Both tasks are self-contained and handle their own errors silently, so they can safely run without supervision.
+
+**What is the SAVE_ENTRY buffer parser?**
+
+River (the journal agent) appends a structured data block to the end of every response:
+```
+[SAVE_ENTRY]
+mood: anxious
+sentiment: negative
+themes: work stress, manager conflict
+summary: User felt overwhelmed and noticed physical tension.
+[/SAVE_ENTRY]
+```
+
+The chat route maintains a buffer of the streaming content. As chunks arrive, it checks whether the buffer now contains `[SAVE_ENTRY]`. If it does:
+- Everything before `[SAVE_ENTRY]` gets sent to the user normally
+- Everything from `[SAVE_ENTRY]` onward is captured but not yielded to the frontend
+- When `[/SAVE_ENTRY]` arrives, the block is parsed into fields and saved as a journal entry
+
+The user only ever sees the conversational response. The structured data is extracted invisibly in real time.
+
+**What is httpx and why is it used for proxy routes?**
+
+`httpx` is Python's async HTTP client — the equivalent of `fetch()` in JavaScript. The habits and mood proxy routes use it to forward requests from FastAPI to Azure Functions.
+
+By using `httpx.AsyncClient`, the FastAPI server doesn't block while waiting for Azure Functions to respond — it can handle other requests in the meantime. The `timeout=10.0` setting means if Azure Functions doesn't respond within 10 seconds, the proxy returns a 503 error rather than hanging forever.
+
+---
+
+*Next: Phase 5–6 — Grove agent + HabitTracker UI*
