@@ -5,7 +5,7 @@
 
 fastapi==0.115.0
 uvicorn[standard]==0.30.1
-semantic-kernel          # PIN THIS: replace with e.g. semantic-kernel==1.x.x after check
+semantic-kernel==1.41.3
 openai==1.76.0
 azure-cosmos==4.7.0
 azure-search-documents==11.6.0
