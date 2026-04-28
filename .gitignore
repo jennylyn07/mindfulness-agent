@@ -34,3 +34,22 @@ next-env.d.ts
 
 # Azure Functions build output
 azure-functions/dist/
+
+# ── Python ─────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+env/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+
+# Python env
+backend/.env
+seed/.env
+
+# Azure Functions local settings (contains secrets)
+local.settings.json

@@ -1,0 +1,15 @@
+# MindFlow — Python FastAPI Backend
+# Requirements — pin semantic-kernel at Hour 2 start after running:
+#   pip index versions semantic-kernel
+# Take the latest stable 1.x, replace the placeholder below, then install.
+
+fastapi==0.115.0
+uvicorn[standard]==0.30.1
+semantic-kernel          # PIN THIS: replace with e.g. semantic-kernel==1.x.x after check
+openai==1.76.0
+azure-cosmos==4.7.0
+azure-search-documents==11.6.0
+httpx==0.27.0
+pydantic==2.7.0
+pydantic-settings==2.2.1
+python-dotenv==1.0.1
