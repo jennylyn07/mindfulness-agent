@@ -24,7 +24,7 @@ from semantic_kernel.contents import ChatHistory
 
 from backend.models.schemas import ChatRequest
 from backend.agents import orchestrator, memory_agent
-from backend.agents import mindfulness_agent, journal_agent, habit_agent
+from backend.agents import mindfulness_agent, journal_agent, habit_agent, insights_agent
 from backend.providers import cosmos_repository as db
 
 router = APIRouter()
@@ -35,13 +35,14 @@ _SAVE_END = "[/SAVE_ENTRY]"
 
 # ── Agent router ───────────────────────────────────────────
 
-def _get_specialist(agent_name: str, memory_context: str):
+async def _get_specialist(agent_name: str, memory_context: str, user_id: str = "", user_message: str = ""):
     """Return the correct ChatCompletionAgent for the classified intent."""
     if agent_name == "mindfulness":
         return mindfulness_agent.get_agent(memory_context)
     if agent_name == "habit":
         return habit_agent.get_agent(memory_context)
-    # insights_agent added in Phase 7
+    if agent_name == "insights":
+        return await insights_agent.get_agent(user_id, user_message, memory_context)
     return journal_agent.get_agent(memory_context)  # default + journal
 
 
@@ -120,7 +121,12 @@ async def chat(request: ChatRequest):
             )
 
             # 3. Build specialist agent + conversation history
-            agent = _get_specialist(classification.agent, memory_context)
+            agent = await _get_specialist(
+                classification.agent,
+                memory_context,
+                user_id=request.userId,
+                user_message=request.message,
+            )
             history = ChatHistory()
 
             for msg in request.conversationHistory:

@@ -281,3 +281,121 @@ By using `httpx.AsyncClient`, the FastAPI server doesn't block while waiting for
 ---
 
 *Next: Phase 5–6 — Grove agent + HabitTracker UI*
+
+---
+
+---
+
+## Phase 5–6 — Grove Agent + HabitTracker + Proxy Routes
+
+### Dev Log
+
+**What got built**
+- `backend/prompts/habit.py` — Grove system prompt. WHY-first coaching philosophy, no-guilt streak recovery ("Missing one day doesn't break a habit. Starting again does."), urgency-tiered responses.
+- `backend/agents/habit_agent.py` — Same factory pattern as Sage and River. Memory context injected.
+- `backend/api/journal.py` — `GET /journal` returning the N most recent journal entries. River's SAVE_ENTRY parser saves entries; this endpoint reads them back.
+- `backend/api/chat.py` — Grove wired into `_get_specialist()`. Import added.
+- `backend/requirements.txt` — All explicit version pins loosened to `>=`. Only `semantic-kernel==1.41.3` remains pinned. Resolves conflict between SK 1.41.3 (needs openai>=2.0.0, pydantic 2.12.5, httpx 0.28.1) and our earlier exact pins.
+- `frontend/components/HabitTracker.tsx` — Fetches `GET /habits`, renders habit cards with one-tap `PATCH /habits/{id}/log`. Skeleton loading. UTC date comparison for done-today detection. Streak displayed as a serif number.
+- `frontend/app/globals.css` — `.habit-list`, `.habit-card`, `.habit-card.done`, `.habit-streak`, `.streak-number` classes added.
+- `frontend/app/page.tsx` — Habits tab replaced with live HabitTracker component.
+
+**What broke and how it was fixed**
+
+| Problem | Fix |
+|---------|-----|
+| `pip install` failed with `ResolutionImpossible` | SK 1.41.3 requires `openai>=2.0.0`, `pydantic>=2.12`, `httpx>=0.28`. All our pins were exact (`==`). Loosened to `>=` except SK itself. |
+| `tail` command not found on PowerShell | Replaced `\| tail -5` with `\| Select-Object -Last 6` throughout. |
+| `seed.py` crashing on Unicode ❌ emoji (Windows cp1252 encoding) | Replaced emoji with plain `[ERROR]` prefix. Added `$env:PYTHONIOENCODING="utf-8"` to commands. |
+| `seed.py` not finding `.env` | Made path absolute using `os.path.abspath`. Added debug line printing resolved path. |
+| `COSMOS_ENDPOINT` not filled in | Cosmos credentials still blank — Cosmos DB not yet provisioned. Seed deferred. |
+
+**Commit**
+- `feat: add Grove agent, Azure Functions for habits and mood, tracker UI`
+
+---
+
+### Learning Report
+
+**What is Grove's "WHY-first" approach?**
+
+Most habit apps focus on the action: "Did you meditate today? Yes/No." Grove's philosophy is different — every habit has a reason behind it, and that reason is what makes it stick. When you tell Grove "I want to meditate daily," Grove asks: "What's the reason behind this one?" The WHY gets stored in memory. When Grove coaches you through a struggle or celebrates a streak, it references that WHY directly: "You started this for your anxiety — 6 days in, that's real."
+
+Research in habit formation shows that habits tied to identity and values are more durable than those tied to outcomes. Grove's prompt is designed around this principle.
+
+**Why is the streak logic in Azure Functions and not FastAPI?**
+
+The streak calculation uses UTC date strings. It walks backward through sorted log dates and counts consecutive days. This is a stateful write operation (append today's date, recalculate streak). Azure Functions are the natural boundary here because they own the habit data in Cosmos — they're the authority on what constitutes a valid log. FastAPI acts only as a proxy, forwarding the request and returning the result.
+
+**What does "loosening version pins" mean and why was it necessary?**
+
+When you write `pydantic==2.7.0` in requirements.txt, pip will only install exactly version 2.7.0. When you write `pydantic>=2.7.0`, pip can install 2.7.0 or any higher version.
+
+semantic-kernel 1.41.3 was released after our original version pins were chosen. It needs pydantic 2.12.5, which is newer than our pin. With exact pins, pip can't satisfy both requirements simultaneously — it's a conflict. Loosening the pins lets pip find compatible versions automatically. The only version we keep exact is semantic-kernel itself, because that's the core architectural decision we committed to at the start.
+
+---
+
+---
+
+## Phase 7–8 — Lumen Agent + AI Search + Insights Dashboard
+
+### Dev Log
+
+**What got built**
+- `backend/prompts/insights.py` — Lumen system prompt. Non-clinical pattern surfacing, emotional arc narration, RAG injection points for both `{journalContext}` (AI Search results) and `{memoryContext}`.
+- `backend/providers/search_provider.py` — `bulk_index(entries)` generates embeddings and upserts into AI Search. `search(query, user_id, top_k=5)` runs hybrid vector+keyword search filtered by userId, returns formatted string for `{journalContext}`.
+- `backend/agents/insights_agent.py` — Async factory: calls `search_provider.search()` first, then builds `ChatCompletionAgent` with both contexts injected.
+- `backend/api/insights.py` — `GET /insights` returns 14-day mood logs for the sparkline chart. Lumen's conversational responses still stream through `POST /chat`.
+- `backend/api/chat.py` — `_get_specialist()` made async. Lumen wired in — when Orchestrator classifies "insights", `insights_agent.get_agent()` is awaited (it needs to run the RAG search before building the agent).
+- `backend/main.py` — All 5 routers now registered: chat, habits, mood, journal, insights.
+- `frontend/components/MoodSparkline.tsx` — Pure SVG sparkline. No chart library. Gradient fill, color-coded dots by mood value, last mood highlighted. Scales dynamically to any score range.
+- `frontend/components/InsightsDashboard.tsx` — Fetches `GET /insights`, renders sparkline, avg mood score, dominant mood, week-over-week trend delta. Lumen prompt card directs users to Chat tab.
+- `frontend/app/globals.css` — `.insights-shell`, `.insights-card`, `.stat-pill`, `.sparkline-*`, `.lumen-prompt` classes added.
+- `frontend/app/page.tsx` — Insights tab replaced with live InsightsDashboard.
+
+**What broke and how it was fixed**
+
+| Problem | Fix |
+|---------|-----|
+| `_get_specialist()` was sync but Lumen's factory is async | Changed `_get_specialist` to `async def`, updated call site to `await _get_specialist(...)`. |
+| Chunk 1 replacement failed (wrong target content) | Viewed the actual file before retrying. Target content must match exactly including whitespace. |
+
+**Commit**
+- `feat: add Lumen agent with RAG and mood dashboard`
+
+---
+
+### Learning Report
+
+**What is RAG and how does it work in MindFlow?**
+
+RAG stands for Retrieval-Augmented Generation. Instead of relying purely on what the AI "remembers" from training, you first retrieve relevant documents from your own data store, then inject them into the AI's instructions.
+
+In MindFlow, when you ask Lumen "What patterns do you see?", this happens:
+1. Your question is converted to a 1536-dimension vector (a mathematical representation)
+2. Azure AI Search compares that vector to the vectors of all your past journal entries
+3. The 5 most semantically similar entries are retrieved
+4. Their summaries and themes are formatted and injected into Lumen's system prompt as `{journalContext}`
+5. Lumen responds as if it just re-read those entries moments ago
+
+This is what makes Lumen feel like it actually knows your history — it does, because it just looked it up.
+
+**What is a vector and why does it enable semantic search?**
+
+A vector is a list of numbers — in our case, 1536 numbers. The embedding model (text-embedding-ada-002) converts any piece of text into this list. Similar texts produce similar vectors. The similarity between two vectors can be measured mathematically (cosine similarity).
+
+So if you ask "Why do I feel anxious at work?" and an old journal entry says "I felt overwhelmed during the project deadline," the vectors for both texts will be close to each other — even though no exact words match. This is why AI Search finds relevant entries that keyword search would miss.
+
+**Why is `_get_specialist()` async only for Lumen?**
+
+The other three specialists (Sage, River, Grove) are simple — `get_agent()` is a synchronous function that just constructs a Python object. There's no network call. Lumen is different: before it can construct the agent, it needs to call Azure AI Search (a network call) to retrieve relevant journal entries. Network calls in async Python must be awaited. So Lumen's factory is `async def`, and the router function must be `async def` too.
+
+**What does the week-over-week trend tell us?**
+
+The trend delta compares your average mood score from the past 7 days against the 7 days before that. A positive number (↑) means your average mood is higher this week than last week. A negative number (↓) means it's lower.
+
+This is deliberately simple — not a statistical test, just a directional signal. The goal isn't clinical accuracy; it's giving the user a meaningful reflection point: "My mood has been trending up" or "This week has been harder than last week." Lumen uses this alongside the journal context to surface a narrative rather than just numbers.
+
+---
+
+*Next: Phase 9 — Polish, demo script, error states, loading states*

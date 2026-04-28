@@ -4,6 +4,7 @@ import { useState } from 'react';
 import ChatWindow from '../components/ChatWindow';
 import MorningBanner from '../components/MorningBanner';
 import HabitTracker from '../components/HabitTracker';
+import InsightsDashboard from '../components/InsightsDashboard';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000';
 const USER_ID = 'demo-user-001';
@@ -77,11 +78,7 @@ export default function Home() {
         )}
 
         {tab === 'insights' && (
-          <div className="placeholder-tab">
-            <span className="placeholder-emoji">✨</span>
-            <p className="placeholder-title">Insights Dashboard</p>
-            <p className="placeholder-sub">Coming in Phase 7 — Lumen agent + RAG</p>
-          </div>
+          <InsightsDashboard userId={USER_ID} />
         )}
       </div>
     </main>
