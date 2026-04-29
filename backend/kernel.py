@@ -14,13 +14,22 @@ from semantic_kernel.connectors.ai.open_ai import (
 )
 from dotenv import load_dotenv
 
-load_dotenv()
+# Resolve backend/.env relative to this file — CWD-independent
+_ENV_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
+load_dotenv(dotenv_path=_ENV_PATH, override=True)
 
-_ENDPOINT = os.getenv("AZURE_OPENAI_ENDPOINT", "")
+_RAW_ENDPOINT = os.getenv("AZURE_OPENAI_ENDPOINT", "")
 _KEY = os.getenv("AZURE_OPENAI_KEY", "")
 _DEPLOYMENT = os.getenv("AZURE_OPENAI_DEPLOYMENT", "gpt-4o")
 _EMBED_DEPLOYMENT = os.getenv("AZURE_OPENAI_EMBED_DEPLOYMENT", "text-embedding-ada-002")
 _API_VERSION = os.getenv("AZURE_OPENAI_API_VERSION", "2024-02-01")
+
+# Azure AI Foundry endpoints include /openai/v1 — strip to base domain only.
+# AzureChatCompletion constructs the full path internally.
+# e.g. https://resource.openai.azure.com/openai/v1 → https://resource.openai.azure.com/
+from urllib.parse import urlparse as _urlparse
+_parsed = _urlparse(_RAW_ENDPOINT)
+_ENDPOINT = f"{_parsed.scheme}://{_parsed.netloc}/"
 
 
 def build_kernel() -> Kernel:

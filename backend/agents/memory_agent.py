@@ -116,11 +116,16 @@ async def write(
     """
     try:
         from openai import AsyncAzureOpenAI
+        from urllib.parse import urlparse as _up
         import os
+
+        _raw = os.getenv("AZURE_OPENAI_ENDPOINT", "")
+        _p = _up(_raw)
+        _base_ep = f"{_p.scheme}://{_p.netloc}/"
 
         client = AsyncAzureOpenAI(
             api_key=os.getenv("AZURE_OPENAI_KEY", ""),
-            azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT", ""),
+            azure_endpoint=_base_ep,
             api_version=os.getenv("AZURE_OPENAI_API_VERSION", "2024-02-01"),
         )
 

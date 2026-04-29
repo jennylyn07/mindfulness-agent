@@ -53,3 +53,6 @@ seed/.env
 
 # Azure Functions local settings (contains secrets)
 local.settings.json
+
+# Presentation notes — not for repo
+DEMO_SCRIPT.md

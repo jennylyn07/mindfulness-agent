@@ -33,6 +33,25 @@ _SAVE_START = "[SAVE_ENTRY]"
 _SAVE_END = "[/SAVE_ENTRY]"
 
 
+def _chunk_text(chunk) -> str:
+    """
+    Safely extract plain text from any SK 1.x invoke_stream chunk.
+    SK 1.41.3 ChatCompletionAgent yields StreamingChatMessageContent directly.
+    Never use truthiness on content objects — use `is not None` + str() instead.
+    """
+    if isinstance(chunk, list):
+        parts = []
+        for item in chunk:
+            c = getattr(item, "content", None)
+            if c is not None:
+                parts.append(str(c))
+        return "".join(parts)
+    c = getattr(chunk, "content", None)
+    if c is None:
+        return ""
+    return c if isinstance(c, str) else str(c)
+
+
 # ── Agent router ───────────────────────────────────────────
 
 async def _get_specialist(agent_name: str, memory_context: str, user_id: str = "", user_message: str = ""):
@@ -147,39 +166,38 @@ async def chat(request: ChatRequest):
             # Yield agent name as first token so frontend can show agent badge
             yield f"[AGENT:{classification.agent}]\n"
 
-            async for chunk in agent.invoke_stream(history):
-                # SK 1.x invoke_stream — handle list or direct content
-                if isinstance(chunk, list):
-                    content = "".join(
-                        item.content
-                        for item in chunk
-                        if hasattr(item, "content") and item.content
-                    )
-                elif hasattr(chunk, "content") and chunk.content:
-                    content = chunk.content
-                else:
-                    content = ""
+            try:
+                async for chunk in agent.invoke_stream(history):
+                    content = _chunk_text(chunk)
 
-                if not content:
-                    continue
+                    if not content:
+                        continue
 
-                buffer += content
+                    buffer += content
 
-                if not in_save_block and _SAVE_START in buffer:
-                    in_save_block = True
-                    pre = buffer[: buffer.index(_SAVE_START)]
-                    if pre:
-                        yield pre
-                        full_response += pre
-                elif not in_save_block:
-                    yield content
-                    full_response += content
+                    if not in_save_block and _SAVE_START in buffer:
+                        in_save_block = True
+                        pre = buffer[: buffer.index(_SAVE_START)]
+                        if pre:
+                            yield pre
+                            full_response += pre
+                    elif not in_save_block:
+                        yield content
+                        full_response += content
 
-                if in_save_block and _SAVE_END in buffer:
-                    asyncio.ensure_future(
-                        _parse_and_save_entry(buffer, request.userId)
-                    )
-                    break
+                    if in_save_block and _SAVE_END in buffer:
+                        asyncio.ensure_future(
+                            _parse_and_save_entry(buffer, request.userId)
+                        )
+                        break
+
+            except ValueError as e:
+                # OpenTelemetry context cleanup error — harmless.
+                # Occurs when SK's generator is torn down inside FastAPI StreamingResponse
+                # because the OTEL ContextVar token was created in a different async context.
+                # Content has already been yielded — safe to ignore.
+                if "created in a different Context" not in str(e):
+                    raise
 
             # 5. Memory WRITE — non-blocking
             asyncio.ensure_future(
@@ -187,7 +205,7 @@ async def chat(request: ChatRequest):
             )
 
         except Exception as e:
-            print(f"[Chat] generate() error: {e}")
-            yield f"[ERROR] Something went wrong. Please try again."
+            print(f"[Chat] generate() error: {type(e).__name__}: {e}")
+            yield "[ERROR] Something went wrong. Please try again."
 
     return StreamingResponse(generate(), media_type="text/plain")

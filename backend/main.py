@@ -8,7 +8,10 @@ from dotenv import load_dotenv
 
 from backend.api import chat, habits, mood, journal, insights
 
-load_dotenv()
+# Load backend/.env relative to this file — safe regardless of CWD
+import os as _os
+from dotenv import load_dotenv as _load_dotenv
+_load_dotenv(dotenv_path=_os.path.join(_os.path.dirname(_os.path.abspath(__file__)), ".env"), override=True)
 
 app = FastAPI(title="MindFlow API", version="1.0.0")
 

@@ -12,7 +12,8 @@ from azure.cosmos import CosmosClient, PartitionKey
 from azure.cosmos.exceptions import CosmosResourceNotFoundError
 from dotenv import load_dotenv
 
-load_dotenv()
+_ENV_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".env")
+load_dotenv(dotenv_path=_ENV_PATH, override=True)
 
 _ENDPOINT = os.getenv("COSMOS_ENDPOINT", "")
 _KEY = os.getenv("COSMOS_KEY", "")
