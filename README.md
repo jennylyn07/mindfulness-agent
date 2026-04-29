@@ -26,7 +26,7 @@ MindFlow is a multi-agent AI system that helps users build healthier habits, ref
 | Frontend | Next.js 14 (App Router), TypeScript, Tailwind CSS |
 | Hosting | Azure App Service (Node.js 20 LTS) |
 | LLM | Azure AI Foundry → GPT-4o |
-| Embeddings | text-embedding-ada-002 |
+| Embeddings | text-embedding-3-small |
 | Database | Azure Cosmos DB (Core SQL API) |
 | Vector Search | Azure AI Search |
 | Agent Framework | Microsoft Semantic Kernel |
@@ -39,7 +39,7 @@ MindFlow is a multi-agent AI system that helps users build healthier habits, ref
 ### Prerequisites
 - Node.js 20 LTS
 - Azure account with the following services provisioned:
-  - Azure AI Foundry (GPT-4o + text-embedding-ada-002 deployed)
+  - Azure AI Foundry (GPT-4o + text-embedding-3-small deployed)
   - Azure Cosmos DB (Serverless, database: `mindflow`)
   - Azure AI Search (index: `journal-index`)
   - Azure App Service (Node.js 20 LTS)
