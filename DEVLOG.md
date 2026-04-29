@@ -399,3 +399,77 @@ This is deliberately simple — not a statistical test, just a directional signa
 ---
 
 *Next: Phase 9 — Polish, demo script, error states, loading states*
+
+---
+
+## Phase 9 — Infrastructure Hardening + AI Search Population
+
+### Dev Log
+
+**What we set out to do**
+Resolve all remaining infrastructure blockers before demo day: fix environment loading, populate the AI Search index so Lumen has RAG data, confirm all frontend components exist, deploy Azure Functions, and commit all pending changes cleanly.
+
+**What got built / fixed**
+
+| Fix | Root cause | Resolution |
+|---|---|---|
+| `load_dotenv()` not finding `backend/.env` | All modules called `load_dotenv()` without a path — defaults to CWD (repo root), but `.env` lives in `backend/`. Server started with no credentials. | Changed all three callers (`kernel.py`, `main.py`, `cosmos_repository.py`) to use `__file__`-relative `os.path.abspath()` paths. |
+| Azure AI Foundry endpoint 404 | Endpoint in `.env` includes `/openai/v1` path suffix (AI Foundry format). SK's `AzureChatCompletion` and `AsyncAzureOpenAI` both expect just the base domain — they construct the path internally. | Added `urlparse` normalization in `kernel.py`. Applied same normalization inline in `orchestrator.py` and `memory_agent.py` WRITE pass. |
+| SK `invoke_stream` TypeError | `ChatCompletionAgent.invoke_stream()` in SK 1.41.3 yields `StreamingChatMessageContent` directly (not a list as older docs stated). Calling `bool()` on the content object triggers `__len__()` → `TypeError`. | Replaced inline extraction with `_chunk_text()` helper that uses `c is not None` instead of truthiness and `str()` for non-string types. |
+| OpenTelemetry `ValueError` crashing stream | SK's generator cleanup fires `ContextVar.reset()` inside FastAPI `StreamingResponse` — the token was created in a different async context → `ValueError`. This propagated to our outer `except` and yielded `[ERROR]`. | Wrapped SK streaming loop in `try/except ValueError` that specifically ignores the OTEL context error (content already yielded before cleanup runs). |
+| AI Search `summary` field not found | `search_provider.py` was sending and selecting a `summary` field that doesn't exist in the manually-created index schema. | Removed `summary` from upload documents and `select` list. Used `content[:150]` snippet instead. |
+| AI Search `contentVector` field not found | Code used `contentVector` as the vector field name; actual index uses `embedding`. | Renamed in both `bulk_index()` and the `VectorizedQuery` fields parameter. |
+| Embedding model deployment name mismatch | Deployed as `text-embedding-3-small-1` (with `-1` suffix); code defaulted to `text-embedding-3-small`. | Updated `AZURE_OPENAI_EMBED_DEPLOYMENT=text-embedding-3-small-1` in `.env` and fallback default in `kernel.py`. |
+| Azure Functions — no functions registered | Root `function_app.py` was missing (`func publish` found no entry point). Then after creating it, module-level `os.environ["COSMOS_ENDPOINT"]` crashed the worker at cold start before any routes could register. Then `log_habit(req, habit_id)` — Python v2 doesn't inject route params as function args; they come from `req.route_params`. | Created root `function_app.py` + `host.json` + `requirements.txt`. Moved credential reads inside helper functions. Changed `habit_id: str` param to `habit_id = req.route_params.get("habit_id")`. Verified locally with `func start` (all 4 routes confirmed), then deployed. |
+| `frontend/.env.local` missing | File was never created; all 4 frontend components had `?? 'http://localhost:8000'` hardcoded fallback only. | Created `frontend/.env.local` with `NEXT_PUBLIC_API_URL=http://localhost:8000`. Swap to ngrok URL at demo time without code changes. |
+
+**AI Search populated**
+- Ran `seed/bulk_index.py` — embedded all 14 journal entries using `text-embedding-3-small-1`, uploaded to `journal-index`
+- Test query `"feeling anxious"` returned 3 semantically relevant entries (2026-04-22, 2026-04-19, 2026-04-16) with correct mood and themes — Lumen's RAG pipeline confirmed working
+
+**Azure Functions deployed**
+- `mindflow-functions.azurewebsites.net` live with 4 routes:
+  - `GET  /api/habits`
+  - `POST /api/habits`
+  - `PATCH /api/habits/{habit_id}/log`
+  - `POST /api/mood`
+- App Settings required in Azure Portal: `COSMOS_ENDPOINT`, `COSMOS_KEY`, `COSMOS_DB_NAME`, `DEMO_USER_ID`
+
+**End-to-end smoke test result**
+```
+POST /chat { "message": "I feel anxious today", "userId": "demo-user-001" }
+→ [AGENT:mindfulness]
+→ Sage responded with box breathing exercise
+→ Memory context from Cosmos (2092 chars, 5 facts) correctly injected
+→ Full streaming pipeline confirmed working
+```
+
+**Commits**
+- `fix: dotenv paths, Azure endpoint normalization, SK chunk extraction, OTEL cleanup`
+- `fix: update embedding model name to text-embedding-3-small across all files`
+- (pending) `fix: update embed deployment name, fix AI Search schema fields, add frontend .env.local, Azure Functions v2 publish setup`
+
+---
+
+### Learning Report
+
+**Why did the same `load_dotenv()` work in the seed script but not the server?**
+
+The seed script explicitly constructed the path using `os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "backend", ".env"))`. The server modules used bare `load_dotenv()` which searches the current working directory. When you run `uvicorn` from the repo root, CWD is the repo root — not `backend/`. There is no `.env` at the repo root (it's gitignored there). So the server started with all empty strings.
+
+**What is the Azure AI Foundry endpoint format and why does it break SDKs?**
+
+Azure AI Foundry provides a "unified inference" endpoint that includes `/openai/v1` in the URL. This is different from the classic Azure OpenAI endpoint format. The OpenAI Python SDK and Semantic Kernel both expect just the base domain (`https://resource.openai.azure.com/`) because they construct the full path (`/openai/deployments/{name}/chat/completions`) internally. Passing in the full path causes the SDK to double-append it, resulting in a 404. The fix is to strip everything after the domain using `urlparse`.
+
+**Why does Python v2 Azure Functions not accept route params as function arguments?**
+
+In the Python v1 model, Azure Functions injected route parameters as named function arguments. Python v2 changed this — the function signature is always `(req: func.HttpRequest) -> func.HttpResponse`, and route parameters are accessed via `req.route_params.get("param_name")`. This is a documented breaking change between models. The error `parameters declared in Python but not in the function definition` is the worker rejecting the function at index time, which cascades to zero functions registering.
+
+**What is OTEL (OpenTelemetry) and why did it break our streaming?**
+
+OpenTelemetry is an observability framework that Semantic Kernel uses to trace LLM calls. It uses Python's `contextvars.ContextVar` to track trace context across async calls. When FastAPI's `StreamingResponse` tears down an async generator (via `GeneratorExit`), SK's cleanup code tries to reset the OTEL context variable — but the `ContextVar` token was created in a different async task context, so `token.reset()` raises `ValueError`. This is a known SK + FastAPI interaction bug. The fix is to catch `ValueError` with the specific message `"created in a different Context"` and ignore it — all content has already been yielded before this cleanup fires.
+
+---
+
+*Next: Phase 10 — Demo dry-run, ngrok tunnel, final visual polish*
+

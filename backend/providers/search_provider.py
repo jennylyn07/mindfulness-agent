@@ -42,36 +42,40 @@ async def bulk_index(entries: List[dict]) -> int:
         print("[SearchProvider] SEARCH_ENDPOINT or SEARCH_KEY not set — skipping index")
         return 0
 
-    client = _get_client()
-    documents = []
-
-    for entry in entries:
-        try:
-            embedding = await get_embedding(entry.get("content", ""))
-            documents.append({
-                "id": entry["id"],
-                "userId": entry.get("userId", ""),
-                "content": entry.get("content", ""),
-                "summary": entry.get("summary", ""),
-                "themes": entry.get("themes", []),
-                "mood": entry.get("moodAtEntry", "okay"),
-                "sentiment": entry.get("sentiment", "neutral"),
-                "timestamp": entry.get("timestamp", ""),
-                "contentVector": embedding,
-            })
-        except Exception as e:
-            print(f"[SearchProvider] Failed to embed entry {entry.get('id')}: {e}")
-
-    if not documents:
-        return 0
-
     try:
-        result = client.upload_documents(documents=documents)
-        succeeded = sum(1 for r in result if r.succeeded)
-        print(f"[SearchProvider] Indexed {succeeded}/{len(documents)} entries")
-        return succeeded
+        client = _get_client()
+        documents = []
+
+        for entry in entries:
+            try:
+                embedding = await get_embedding(entry.get("content", ""))
+                documents.append({
+                    "id": entry["id"],
+                    "userId": entry.get("userId", ""),
+                    "content": entry.get("content", ""),
+                    "mood": entry.get("moodAtEntry", "okay"),
+                    "sentiment": entry.get("sentiment", "neutral"),
+                    "themes": entry.get("themes", []),
+                    "timestamp": entry.get("timestamp", ""),
+                    "embedding": embedding,          # matches index field name
+                })
+            except Exception as e:
+                print(f"[SearchProvider] Failed to embed entry {entry.get('id')}: {e}")
+
+        if not documents:
+            return 0
+
+        try:
+            result = client.upload_documents(documents=documents)
+            succeeded = sum(1 for r in result if r.succeeded)
+            print(f"[SearchProvider] Indexed {succeeded}/{len(documents)} entries")
+            return succeeded
+        except Exception as e:
+            print(f"[SearchProvider] bulk_index failed: {e}")
+            return 0
+
     except Exception as e:
-        print(f"[SearchProvider] bulk_index failed: {e}")
+        print(f"[SearchProvider] bulk_index outer error: {e}")
         return 0
 
 
@@ -95,14 +99,14 @@ async def search(
         vector_query = VectorizedQuery(
             vector=query_vector,
             k_nearest_neighbors=top_k,
-            fields="contentVector",
+            fields="embedding",
         )
 
         results = client.search(
             search_text=query,
             vector_queries=[vector_query],
             filter=f"userId eq '{user_id}'",
-            select=["content", "summary", "themes", "mood", "timestamp"],
+            select=["content", "themes", "mood", "timestamp"],
             top=top_k,
         )
 
@@ -110,9 +114,9 @@ async def search(
         for r in results:
             date = r.get("timestamp", "")[:10]
             mood = r.get("mood", "")
-            summary = r.get("summary", r.get("content", "")[:120])
+            snippet = r.get("content", "")[:150]
             themes = ", ".join(r.get("themes", []))
-            entries.append(f"[{date}] Mood: {mood} | Themes: {themes}\n{summary}")
+            entries.append(f"[{date}] Mood: {mood} | Themes: {themes}\n{snippet}")
 
         if not entries:
             return ""
