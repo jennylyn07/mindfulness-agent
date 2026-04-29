@@ -24,6 +24,7 @@ function todayUTC(): string {
 export default function HabitTracker({ userId }: HabitTrackerProps) {
   const [habits, setHabits] = useState<Habit[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [logging, setLogging] = useState<string | null>(null);
   const today = todayUTC();
 
@@ -33,11 +34,14 @@ export default function HabitTracker({ userId }: HabitTrackerProps) {
 
   async function fetchHabits() {
     setLoading(true);
+    setError(false);
     try {
       const res = await fetch(`${API_URL}/habits?userId=${userId}`);
       if (res.ok) setHabits(await res.json());
+      else setError(true);
     } catch (e) {
       console.error('Failed to load habits:', e);
+      setError(true);
     } finally {
       setLoading(false);
     }
@@ -73,6 +77,17 @@ export default function HabitTracker({ userId }: HabitTrackerProps) {
         {[1, 2, 3].map((i) => (
           <div key={i} className="habit-card skeleton" style={{ height: '72px' }} />
         ))}
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="placeholder-tab">
+        <span className="placeholder-emoji">⚠️</span>
+        <p className="placeholder-title">Couldn't load habits</p>
+        <p className="placeholder-sub">Check your connection and try again.</p>
+        <button className="suggestion-chip" onClick={fetchHabits} style={{ marginTop: '0.75rem' }}>Retry</button>
       </div>
     );
   }

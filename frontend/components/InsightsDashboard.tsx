@@ -22,14 +22,19 @@ const MOOD_EMOJI: Record<string, string> = {
 export default function InsightsDashboard({ userId }: InsightsDashboardProps) {
   const [moodLogs, setMoodLogs] = useState<MoodLog[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
-  useEffect(() => {
+  function loadInsights() {
+    setLoading(true);
+    setError(false);
     fetch(`${API_URL}/insights?userId=${userId}&days=14`)
-      .then((r) => r.json())
+      .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
       .then((data) => setMoodLogs(data.moodLogs ?? []))
-      .catch((e) => console.error('Failed to load insights:', e))
+      .catch((e) => { console.error('Failed to load insights:', e); setError(true); })
       .finally(() => setLoading(false));
-  }, [userId]);
+  }
+
+  useEffect(() => { loadInsights(); }, [userId]);
 
   // Compute mood frequency for the past 14 days
   const moodCounts = moodLogs.reduce<Record<string, number>>((acc, log) => {
@@ -52,6 +57,19 @@ export default function InsightsDashboard({ userId }: InsightsDashboardProps) {
   const avg1 = week1.length ? week1.reduce((s, l) => s + l.score, 0) / week1.length : null;
   const avg2 = week2.length ? week2.reduce((s, l) => s + l.score, 0) / week2.length : null;
   const trend = avg1 !== null && avg2 !== null ? avg1 - avg2 : null;
+
+  if (error) {
+    return (
+      <div className="insights-shell">
+        <div className="placeholder-tab">
+          <span className="placeholder-emoji">⚠️</span>
+          <p className="placeholder-title">Couldn’t load insights</p>
+          <p className="placeholder-sub">Check your connection and try again.</p>
+          <button className="suggestion-chip" onClick={loadInsights} style={{ marginTop: '0.75rem' }}>Retry</button>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
