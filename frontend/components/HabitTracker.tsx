@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import HabitCoach from './HabitCoach';
 
 interface Habit {
   id: string;
@@ -32,6 +33,7 @@ export default function HabitTracker({ userId }: HabitTrackerProps) {
   const [showAddForm, setShowAddForm] = useState(false);
   const [newHabit, setNewHabit] = useState({ name: '', why: '' });
   const [addingHabit, setAddingHabit] = useState(false);
+  const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const today = todayUTC();
 
   useEffect(() => {
@@ -86,14 +88,17 @@ export default function HabitTracker({ userId }: HabitTrackerProps) {
   }
 
   async function deleteHabit(habitId: string) {
-    if (!confirm('Remove this habit? This cannot be undone.')) return;
     try {
       const res = await fetch(`${API_URL}/habits/${habitId}?userId=${userId}`, { method: 'DELETE' });
       if (res.ok) {
         setHabits((prev) => prev.filter((h) => h.id !== habitId));
+      } else {
+        console.error('Delete failed:', res.status, await res.text());
       }
     } catch (e) {
       console.error('Failed to delete habit:', e);
+    } finally {
+      setConfirmingId(null);
     }
   }
 
@@ -172,6 +177,7 @@ export default function HabitTracker({ userId }: HabitTrackerProps) {
   const pct = total > 0 ? Math.round((doneCount / total) * 100) : 0;
 
   return (
+    <>
     <div className="habit-list">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <p className="habit-list-date">
@@ -294,18 +300,41 @@ export default function HabitTracker({ userId }: HabitTrackerProps) {
                     <span className="streak-label">day{habit.currentStreak !== 1 ? 's' : ''}</span>
                   </div>
                   <div className="habit-actions">
-                    <button
-                      className="habit-action-btn"
-                      onClick={() => startEdit(habit)}
-                      aria-label={`Edit ${habit.name}`}
-                      title="Edit"
-                    >✏️</button>
-                    <button
-                      className="habit-action-btn habit-action-delete"
-                      onClick={() => deleteHabit(habit.id)}
-                      aria-label={`Delete ${habit.name}`}
-                      title="Delete"
-                    >🗑️</button>
+                    {confirmingId === habit.id ? (
+                      /* Inline confirm: replaces action buttons */
+                      <>
+                        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Remove?</span>
+                        <button
+                          className="habit-action-btn"
+                          onClick={() => deleteHabit(habit.id)}
+                          title="Confirm delete"
+                          aria-label="Confirm delete"
+                          id={`habit-delete-confirm-${habit.id}`}
+                        >✓</button>
+                        <button
+                          className="habit-action-btn"
+                          onClick={() => setConfirmingId(null)}
+                          title="Cancel"
+                          aria-label="Cancel delete"
+                        >✕</button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          className="habit-action-btn"
+                          onClick={() => startEdit(habit)}
+                          aria-label={`Edit ${habit.name}`}
+                          title="Edit"
+                        >✏️</button>
+                        <button
+                          className="habit-action-btn habit-action-delete"
+                          onClick={() => setConfirmingId(habit.id)}
+                          aria-label={`Delete ${habit.name}`}
+                          title="Delete"
+                          id={`habit-delete-${habit.id}`}
+                        >🗑️</button>
+                      </>
+                    )}
                   </div>
                 </div>
               </>
@@ -314,5 +343,9 @@ export default function HabitTracker({ userId }: HabitTrackerProps) {
         );
       })}
     </div>
+
+    {/* Grove Habit Coach — embedded below habit list */}
+    <HabitCoach habits={habits} userId={userId} />
+    </>
   );
 }

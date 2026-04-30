@@ -94,6 +94,7 @@ class ChatRequest(BaseModel):
     message: str
     userId: str = "demo-user-001"
     conversationHistory: list[dict] = Field(default_factory=list)
+    agentOverride: Optional[str] = None   # e.g. "habit" — skips orchestrator
 
 
 class OrchestratorResult(BaseModel):

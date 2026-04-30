@@ -5,11 +5,12 @@ import ChatWindow from '../components/ChatWindow';
 import MorningBanner from '../components/MorningBanner';
 import HabitTracker from '../components/HabitTracker';
 import InsightsDashboard from '../components/InsightsDashboard';
+import JournalView from '../components/JournalView';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000';
 const USER_ID = 'demo-user-001'; // demo constant — would come from auth in production
 
-type Tab = 'chat' | 'habits' | 'insights';
+type Tab = 'chat' | 'habits' | 'insights' | 'journal';
 
 export default function Home() {
   const [tab, setTab] = useState<Tab>('chat');
@@ -62,7 +63,7 @@ export default function Home() {
           Mind<span>Flow</span>
         </span>
         <nav className="tab-nav" role="tablist">
-          {(['chat', 'habits', 'insights'] as Tab[]).map((t) => (
+          {(['chat', 'journal', 'habits', 'insights'] as Tab[]).map((t) => (
             <button
               key={t}
               role="tab"
@@ -71,8 +72,9 @@ export default function Home() {
               onClick={() => switchTab(t)}
               id={`tab-${t}`}
             >
-              {t === 'chat' && '💬 Chat'}
-              {t === 'habits' && '🌱 Habits'}
+              {t === 'chat'     && '💬 Chat'}
+              {t === 'habits'   && '🌱 Habits'}
+              {t === 'journal'  && '📓 Journal'}
               {t === 'insights' && '✨ Insights'}
             </button>
           ))}
@@ -97,6 +99,13 @@ export default function Home() {
         {visitedTabs.current.has('habits') && (
           <div className={`tab-panel ${tab === 'habits' ? 'tab-panel-active' : ''}`}>
             <HabitTracker userId={USER_ID} />
+          </div>
+        )}
+
+        {/* Journal — lazy mount on first visit, stays mounted after */}
+        {visitedTabs.current.has('journal') && (
+          <div className={`tab-panel ${tab === 'journal' ? 'tab-panel-active' : ''}`}>
+            <JournalView userId={USER_ID} />
           </div>
         )}
 

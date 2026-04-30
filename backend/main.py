@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 
-from backend.api import chat, habits, mood, journal, insights, user
+from backend.api import chat, habits, mood, journal, insights, user, grove
 
 # Load backend/.env relative to this file — safe regardless of CWD
 import os as _os
@@ -32,6 +32,7 @@ app.include_router(user.router)
 app.include_router(mood.router)
 app.include_router(journal.router)
 app.include_router(insights.router)
+app.include_router(grove.router)
 
 
 @app.get("/health")

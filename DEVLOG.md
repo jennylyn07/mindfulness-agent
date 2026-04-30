@@ -639,4 +639,140 @@ Azure AI Search documents are addressed by their `id` field. When you delete a d
 
 *Status: All routes signed off. Memory agent hardened. Seed deterministic. Demo data clean. Ready for presentation.*
 
+---
 
+## Phase — Final Polish & Feature Completion (Demo Day)
+
+### Dev Log
+
+**What this session addressed**
+Final feature push before the hackathon presentation. Covered five areas: streak logic correctness, Journal tab implementation, habit coach engagement, journal editing with memory sync, and a series of UX quality fixes.
+
+---
+
+#### 1. Streak Logic Overhaul (`azure-functions/function_app.py`)
+
+**Problem:** Streak values were inconsistent — unchecking a habit reset it to 0, habits with broken chains showed wrong counts, and the UI drifted from the actual log array.
+
+**Solution:** Introduced a single authoritative `_calc_streak(logs, as_of=date)` helper. All three operations (GET, log, unlog) now call this one function:
+
+| Rule | Implementation |
+|---|---|
+| Not logged today, logged yesterday → show yesterday's streak | `GET`: today not in logs → `_calc_streak(as_of=yesterday)` |
+| Not logged today, missed yesterday → 0 | `_calc_streak(as_of=yesterday)` finds gap → returns 0 |
+| Logged today → yesterday's streak + 1 | `log_habit`: adds today → `_calc_streak(as_of=today)` |
+| Uncheck today → back to pre-check streak | `unlog_habit`: removes today → `_calc_streak(as_of=yesterday)` |
+| Miss a whole day (midnight) → 0 | Next day's GET: yesterday shifted, no log → 0 |
+
+Deployed to Azure Functions via `func azure functionapp publish`.
+
+---
+
+#### 2. Journal Tab (`frontend/components/JournalView.tsx`, `frontend/app/globals.css`)
+
+Built a full journal view as the second tab (Chat · **Journal** · Habits · Insights):
+- Card-based layout with date, mood pill, theme chips
+- Expandable "▼ Read River's response" section per entry
+- Mood-to-colour and mood-to-emoji mapping covering all seed values
+- Sorted newest-first via `timestamp DESC` from Cosmos
+
+**River response completeness fix:** The journal prompt instructed River to "continue the conversation after [/SAVE_ENTRY]" — but the stream parser breaks at `[/SAVE_ENTRY]`, so that continuation text was never sent to the user. River was writing just "Of course, here's what I'm saving:" before the block. Fixed by instructing River to write its full 2–3 sentence response *before* the `[SAVE_ENTRY]` block, then silently append the block.
+
+**First-person summaries:** Changed the `summary` prompt field from third-person case note style ("Jen reflected on…") to first-person user voice ("I realised…", "I felt…").
+
+---
+
+#### 3. Journal Entry Editing
+
+**Backend (`backend/api/journal.py`, `backend/providers/cosmos_repository.py`):**
+- Added `PATCH /journal/{entry_id}` endpoint accepting `{ summary?, moodAtEntry?, themes? }`
+- Added `update_journal_entry(entry_id, user_id, updates)` to `cosmos_repository.py`
+- On summary edit: triggers a background `memory_agent.write()` call so `user_memory` reflects the corrected text — non-blocking via `asyncio.ensure_future()`
+- AI Search is intentionally *not* re-indexed on summary edit (Lumen's RAG embeds `content`, not `summary`)
+
+**Frontend (`frontend/components/JournalView.tsx`):**
+- ✏️ button appears on card hover → inline edit mode with a `<textarea>` pre-filled with current summary
+- Save/Cancel buttons; optimistic UI update on success
+
+---
+
+#### 4. Habit Delete Fix (`frontend/components/HabitTracker.tsx`)
+
+**Problem:** `window.confirm()` is silently blocked in some Next.js / Chromium contexts, so the delete button did nothing.
+
+**Fix:** Replaced with a two-click inline flow — first click changes the row to "Remove? ✓ ✕"; second click confirms. No browser dialog dependency.
+
+---
+
+#### 5. Grove Habit Coach Chat Head (`frontend/components/HabitCoach.tsx`, `backend/api/grove.py`)
+
+Built a Messenger-style floating chat head embedded in the Habits tab:
+
+**FAB behaviour:**
+- Circular 🌿 button, sticky to bottom-left of the Habits tab content area
+- Always visible — shows a sage ring when chat panel is open
+- Tapping FAB or the DM bubble opens/closes the panel
+
+**Proactive DM bubble:**
+- 1 second after habits load, a white chat bubble slides in from the left with a Grove message
+- Clicking it opens the chat; ✕ dismisses it; auto-dismisses after 9 seconds
+- Content is **AI-generated** by `GET /grove/nudge` — a lightweight non-streaming GPT-4o call with the user's live habit data and memory context (temperature 0.85 for variation)
+- **Cached in `sessionStorage`** with key `grove_nudge_{userId}_{date}`, TTL 60 minutes — tab switches are instant; refreshes after an hour or on a new day
+
+**Chat panel:**
+- Absolute-positioned above the FAB (no document flow impact — habit cards never obscured)
+- Glassmorphism background: `rgba(255,255,255,0.72)` + `backdrop-filter: blur(18px)`
+- Green gradient header: Grove + Habit Coach
+- Opening message is the **same** as the DM bubble (fetched from cache — always in sync)
+- Subsequent messages stream from `POST /chat` with `agentOverride: "habit"` — bypasses the orchestrator LLM call, routes directly to Grove
+- `[AGENT:habit]\n` header stripped from first chunk before display
+
+**Backend additions:**
+- `agentOverride: Optional[str]` added to `ChatRequest` schema — when set, skips `orchestrator.classify()` and constructs `OrchestratorResult` directly (saves ~300ms per Habits tab message)
+- `GET /grove/nudge` endpoint in `backend/api/grove.py` — fetches habits + memory, generates nudge, returns `{ nudge, date }`
+
+**Memory:** Grove in the Habits chat head shares the same `memory_agent.read/write` pipeline as Grove in the main Chat tab. Any context learned in one is available in the other on the next request.
+
+---
+
+**Files changed**
+
+| File | Change |
+|---|---|
+| `azure-functions/function_app.py` | `_calc_streak()` helper, live streak recalc on GET/log/unlog |
+| `backend/api/chat.py` | `agentOverride` bypass, `OrchestratorResult` import |
+| `backend/api/journal.py` | `PATCH /journal/{entry_id}` + background memory re-extraction |
+| `backend/api/grove.py` | NEW — `GET /grove/nudge` AI nudge endpoint |
+| `backend/main.py` | Register `grove` router |
+| `backend/models/schemas.py` | `agentOverride: Optional[str]` on `ChatRequest` |
+| `backend/prompts/journal.py` | Fix River save response (full text before block), first-person summary |
+| `backend/providers/cosmos_repository.py` | `update_journal_entry()` |
+| `frontend/app/page.tsx` | Journal tab added (tab 2), tab order: Chat·Journal·Habits·Insights |
+| `frontend/app/globals.css` | JournalView styles, journal edit styles, Grove chat head styles (glassmorphism panel, FAB, DM bubble) |
+| `frontend/components/JournalView.tsx` | NEW — full Journal tab component |
+| `frontend/components/HabitCoach.tsx` | NEW — Grove Messenger-style chat head |
+| `frontend/components/HabitTracker.tsx` | Inline delete confirm, HabitCoach integration |
+
+---
+
+### Learning Report (Plain Language)
+
+**Why does the streak need a single helper function instead of inline logic in each route?**
+
+Each habit operation (GET, log, unlog) was computing the streak independently. Small differences in each implementation — how they handled edge cases like missing yesterday, or the meaning of "as of today vs. yesterday" — caused the streak values to diverge. One function that takes `(logs, as_of)` and is called from every route guarantees that GET, log, and unlog always agree on what the streak is.
+
+**Why is `sessionStorage` the right cache for the Grove nudge?**
+
+`localStorage` persists across browser sessions — once generated, the nudge would never refresh unless you manually clear storage. `sessionStorage` scopes to the browser tab and clears on close, which is a natural TTL. We add an explicit 60-minute timestamp check on top so the nudge refreshes throughout a long session (e.g. morning habits check vs. evening check-in). The date in the cache key ensures a fresh nudge every calendar day regardless of TTL.
+
+**Why does `agentOverride` bypass the orchestrator instead of sending a hint?**
+
+The orchestrator is a JSON-mode LLM call — it costs ~300ms per request even when you already know the answer. In the Habits tab chat head, the user is always talking to Grove; routing is predetermined. Adding an optional bypass makes the chat head feel snappy while keeping the full orchestrator path for the main Chat tab where intent is genuinely ambiguous.
+
+**Why is the journal summary stored separately from River's response?**
+
+River's chat response (`content`) is what the user saw in real time — the empathetic 2–3 sentence reflection. The `summary` is a compact, indexable one-liner generated by the prompt's `[SAVE_ENTRY]` block. Keeping them separate lets the Journal tab show the summary as the card headline and the full response as expandable detail, without surfacing the raw AI output as the primary text.
+
+---
+
+*Status: All features complete. Streak logic deterministic. Grove chat head live. Journal editable with memory sync. Demo-ready.*

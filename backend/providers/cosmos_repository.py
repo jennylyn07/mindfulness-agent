@@ -83,6 +83,16 @@ async def get_recent_journal_entries(user_id: str, limit: int = 10) -> list[dict
     return items
 
 
+async def update_journal_entry(entry_id: str, user_id: str, updates: dict) -> dict:
+    """Update editable fields of a journal entry (summary, moodAtEntry, themes)."""
+    container = _container("journal_entries")
+    entry = container.read_item(item=entry_id, partition_key=user_id)
+    for field in ("summary", "moodAtEntry", "themes"):
+        if field in updates:
+            entry[field] = updates[field]
+    return container.upsert_item(entry)
+
+
 # ── Hour 7: Mood logs (added when Lumen agent is built) ───
 
 async def get_mood_logs(user_id: str, days: int = 7) -> list[dict]:

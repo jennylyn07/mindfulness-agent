@@ -14,7 +14,7 @@ not by the frontend directly.
 import json
 import os
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 import azure.functions as func
 from azure.cosmos import CosmosClient
@@ -41,6 +41,37 @@ def _get_mood_container():
 DEMO_USER_ID = os.environ.get("DEMO_USER_ID", "demo-user-001")
 
 
+def _calc_streak(logs: list, as_of=None) -> int:
+    """
+    Calculate the consecutive-day streak ending on `as_of` (defaults to today UTC).
+
+    Algorithm: walk backwards through sorted logs. For each date, check if it
+    equals the next expected date (starting from as_of). If yes, count it and
+    move the expected date back by one day. If the log date is earlier than
+    expected (a gap), stop.
+
+    This is the single authoritative implementation used by GET, log, and unlog.
+    """
+    if not logs:
+        return 0
+    if as_of is None:
+        as_of = datetime.now(timezone.utc).date()
+    streak = 0
+    check = as_of
+    for date_str in reversed(sorted(logs)):
+        try:
+            log_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+        except ValueError:
+            continue
+        if log_date == check:
+            streak += 1
+            check = check - timedelta(days=1)
+        elif log_date < check:
+            # Gap in the chain — stop counting
+            break
+    return streak
+
+
 # ── GET /api/habits ────────────────────────────────────────
 @app.route(route="habits", methods=["GET"])
 def get_habits(req: func.HttpRequest) -> func.HttpResponse:
@@ -52,6 +83,22 @@ def get_habits(req: func.HttpRequest) -> func.HttpResponse:
             parameters=[{"name": "@uid", "value": user_id}],
             enable_cross_partition_query=False,
         ))
+        # Recalculate streak with the correct as_of date:
+        #   - Today NOT logged → show yesterday's streak (still alive until midnight)
+        #   - Today IS logged  → show today's full streak (yesterday + 1)
+        # Midnight auto-reset: if tomorrow arrives and today wasn't logged,
+        # as_of=yesterday will be tomorrow's "yesterday" (today), which has
+        # no log → chain breaks → streak = 0 automatically.
+        today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        yesterday_date = datetime.now(timezone.utc).date() - timedelta(days=1)
+        for item in items:
+            logs = item.get("logs", [])
+            if today_str in logs:
+                live_streak = _calc_streak(logs)           # includes today
+            else:
+                live_streak = _calc_streak(logs, as_of=yesterday_date)  # alive until midnight
+            item["currentStreak"] = live_streak
+            item["longestStreak"] = max(item.get("longestStreak", 0), live_streak)
         return func.HttpResponse(
             json.dumps(items),
             mimetype="application/json",
@@ -106,17 +153,8 @@ def log_habit(req: func.HttpRequest) -> func.HttpResponse:
             logs.append(today)
             logs.sort()
 
-        # Recalculate streak (UTC calendar days)
-        streak = 0
-        check = datetime.now(timezone.utc).date()
-        for date_str in reversed(logs):
-            log_date = datetime.strptime(date_str, "%Y-%m-%d").date()
-            diff = (check - log_date).days
-            if diff == streak:
-                streak += 1
-                check = log_date
-            else:
-                break
+        # Recalculate streak from today (today is now in logs)
+        streak = _calc_streak(logs)
 
         habit["logs"] = logs
         habit["currentStreak"] = streak
@@ -144,17 +182,12 @@ def unlog_habit(req: func.HttpRequest) -> func.HttpResponse:
         if today in logs:
             logs.remove(today)
 
-        # Recalculate streak from scratch
-        streak = 0
-        check = datetime.now(timezone.utc).date()
-        for date_str in reversed(sorted(logs)):
-            log_date = datetime.strptime(date_str, "%Y-%m-%d").date()
-            diff = (check - log_date).days
-            if diff == streak:
-                streak += 1
-                check = log_date
-            else:
-                break
+        # Uncheck = "undo today" → show streak as of YESTERDAY.
+        # The chain is preserved: re-checking today immediately restores full streak.
+        # Midnight auto-reset: handled by GET /habits live recalculation —
+        # if tomorrow arrives and today was never logged, the chain breaks → 0.
+        yesterday = datetime.now(timezone.utc).date() - timedelta(days=1)
+        streak = _calc_streak(logs, as_of=yesterday)
 
         habit["logs"] = logs
         habit["currentStreak"] = streak

@@ -1174,3 +1174,630 @@ code, pre, .font-mono {
   color: var(--text-mid);
   line-height: 1.5;
 }
+
+/* ── Journal View ─────────────────────────────────────────── */
+.journal-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  overflow-y: auto;
+  flex: 1;
+  padding-right: 0.25rem;
+}
+
+.journal-header-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 0 0.25rem 0.1rem;
+}
+
+.journal-card {
+  background: white;
+  border-radius: 16px;
+  padding: 1rem;
+  box-shadow: var(--clay-up);
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.journal-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.journal-date-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.05rem;
+}
+
+.journal-day {
+  font-family: 'DM Serif Display', serif;
+  font-size: 0.9rem;
+  color: var(--text-dark);
+  line-height: 1.2;
+}
+
+.journal-time {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  letter-spacing: 0.02em;
+}
+
+/* Mood pill */
+.journal-mood {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.2rem 0.65rem;
+  border-radius: 20px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  flex-shrink: 0;
+  text-transform: capitalize;
+}
+
+.journal-mood-positive {
+  background: #D1EDD9;
+  color: #2F7A50;
+}
+
+.journal-mood-neutral {
+  background: var(--sage-pale);
+  color: var(--sage-deep);
+}
+
+.journal-mood-negative {
+  background: var(--lavender-pale);
+  color: #5B4D8F;
+}
+
+/* Summary text */
+.journal-summary {
+  font-size: 0.82rem;
+  color: var(--text-mid);
+  line-height: 1.55;
+}
+
+/* Theme chips row */
+.journal-themes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.journal-theme-chip {
+  background: var(--cream);
+  color: var(--text-mid);
+  font-size: 0.68rem;
+  font-weight: 500;
+  padding: 0.2rem 0.55rem;
+  border-radius: 20px;
+  box-shadow: var(--clay-in);
+  letter-spacing: 0.01em;
+}
+
+/* Expand / collapse River response */
+.journal-expand-btn {
+  background: none;
+  border: none;
+  color: var(--sage-deep);
+  font-size: 0.72rem;
+  font-family: 'DM Sans', sans-serif;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+  text-align: left;
+  opacity: 0.75;
+  transition: opacity 0.15s ease;
+}
+
+.journal-expand-btn:hover {
+  opacity: 1;
+}
+
+.journal-content {
+  font-size: 0.8rem;
+  color: var(--text-mid);
+  line-height: 1.65;
+  background: var(--cream);
+  border-radius: 10px;
+  padding: 0.75rem;
+  box-shadow: var(--clay-in);
+  white-space: pre-wrap;
+  word-break: break-word;
+  animation: fadeIn 0.2s ease-out;
+}
+
+/* ── Journal inline edit ────────────────────────────────── */
+.journal-summary-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4rem;
+}
+
+.journal-edit-btn {
+  background: none;
+  border: none;
+  font-size: 0.78rem;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  flex-shrink: 0;
+  padding: 0;
+  line-height: 1.55;
+}
+
+.journal-card:hover .journal-edit-btn {
+  opacity: 0.6;
+}
+
+.journal-edit-btn:hover {
+  opacity: 1 !important;
+}
+
+.journal-edit-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  animation: fadeIn 0.15s ease-out;
+}
+
+.journal-edit-input {
+  width: 100%;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.82rem;
+  color: var(--text-dark);
+  background: var(--cream);
+  border: 1.5px solid var(--sage-light);
+  border-radius: 10px;
+  padding: 0.6rem 0.75rem;
+  resize: vertical;
+  line-height: 1.55;
+  outline: none;
+  box-shadow: var(--clay-in);
+}
+
+.journal-edit-input:focus {
+  border-color: var(--sage);
+}
+
+.journal-edit-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.journal-edit-save {
+  background: var(--sage);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 0.3rem 0.75rem;
+  font-size: 0.78rem;
+  font-family: 'DM Sans', sans-serif;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.journal-edit-save:hover {
+  background: var(--sage-deep);
+}
+
+.journal-edit-cancel {
+  background: var(--cream);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.3rem 0.75rem;
+  font-size: 0.78rem;
+  font-family: 'DM Sans', sans-serif;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.journal-edit-cancel:hover {
+  color: var(--text-dark);
+}
+
+/* ── Grove Floating Chat Head ────────────────────────────── */
+.grove-float-root {
+  position: sticky;
+  bottom: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.6rem;
+  margin-top: 1.5rem;
+  z-index: 50;
+  pointer-events: none;
+}
+
+.grove-float-root > * {
+  pointer-events: all;
+}
+
+/* Inner anchor — relative so panel can absolute-position above FAB */
+.grove-float-inner {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+/* FAB — always visible */
+.grove-fab {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: var(--sage);
+  color: white;
+  border: none;
+  font-size: 1.45rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.22);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  flex-shrink: 0;
+}
+
+.grove-fab:hover {
+  transform: scale(1.08);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.28);
+}
+
+/* Active ring when panel is open — Messenger style */
+.grove-fab--active {
+  box-shadow: 0 0 0 3px white, 0 0 0 5px var(--sage), 0 4px 16px rgba(0,0,0,0.22);
+}
+
+/* Nudge bubble — Messenger chat head DM style */
+.grove-dm-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  animation: dmSlideIn 0.35s cubic-bezier(0.34, 1.4, 0.64, 1);
+}
+
+@keyframes dmSlideIn {
+  from { opacity: 0; transform: translateX(-20px) scale(0.92); }
+  to   { opacity: 1; transform: translateX(0)     scale(1); }
+}
+
+.grove-dm-bubble {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: white;
+  border-radius: 18px 18px 18px 4px;
+  padding: 0.6rem 0.85rem;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+  cursor: pointer;
+  max-width: 230px;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.grove-dm-bubble:hover {
+  transform: scale(1.02);
+  box-shadow: 0 6px 24px rgba(0,0,0,0.2);
+}
+
+.grove-dm-avatar {
+  font-size: 1.1rem;
+  flex-shrink: 0;
+}
+
+.grove-dm-text {
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: var(--text-dark);
+  font-family: 'DM Sans', sans-serif;
+}
+
+.grove-dm-dismiss {
+  background: rgba(0,0,0,0.08);
+  border: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  font-size: 0.6rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+
+.grove-dm-dismiss:hover { background: rgba(0,0,0,0.18); color: var(--text-dark); }
+
+/* Chat panel — absolute above FAB, glassmorphism */
+.grove-float-panel {
+  position: absolute;
+  bottom: 60px;
+  left: 0;
+  width: 300px;
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  border-radius: 20px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.16), inset 0 1px 0 rgba(255,255,255,0.8);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: panelIn 0.25s cubic-bezier(0.34,1.3,0.64,1);
+}
+
+@keyframes panelIn {
+  from { opacity: 0; transform: translateY(12px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0)    scale(1); }
+}
+
+.grove-float-header {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.85rem 1rem;
+  background: linear-gradient(135deg, var(--sage) 0%, var(--sage-deep, #3d6b4a) 100%);
+}
+
+.grove-float-avatar {
+  font-size: 1.4rem;
+  line-height: 1;
+}
+
+.grove-float-title-block {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.05rem;
+}
+
+.grove-float-name {
+  font-weight: 700;
+  font-size: 0.88rem;
+  color: white;
+}
+
+.grove-float-sub {
+  font-size: 0.62rem;
+  color: rgba(255,255,255,0.75);
+  letter-spacing: 0.01em;
+}
+
+.grove-float-close {
+  background: rgba(255,255,255,0.15);
+  border: none;
+  color: white;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  font-size: 0.75rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+}
+
+.grove-float-close:hover { background: rgba(255,255,255,0.3); }
+
+/* Messages area */
+.grove-float-messages {
+  padding: 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-height: 240px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--sage-light) transparent;
+  background: transparent;
+}
+
+.grove-float-bubble {
+  font-size: 0.8rem;
+  line-height: 1.55;
+  border-radius: 14px;
+  padding: 0.55rem 0.8rem;
+  max-width: 90%;
+  word-break: break-word;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.grove-float-bubble--grove {
+  background: var(--cream);
+  color: var(--text-dark);
+  align-self: flex-start;
+  border-bottom-left-radius: 4px;
+  box-shadow: var(--clay-in);
+}
+
+.grove-float-bubble--user {
+  background: var(--sage);
+  color: white;
+  align-self: flex-end;
+  border-bottom-right-radius: 4px;
+}
+
+.grove-float-cursor {
+  display: inline-block;
+  animation: blink 1s step-end infinite;
+  color: var(--sage);
+  margin-left: 1px;
+}
+
+/* Input row */
+.grove-float-input-row {
+  display: flex;
+  gap: 0.4rem;
+  padding: 0.65rem 0.85rem;
+  border-top: 1px solid rgba(255,255,255,0.4);
+  background: rgba(255,255,255,0.35);
+}
+
+.grove-float-input {
+  flex: 1;
+  background: var(--cream);
+  border: 1.5px solid var(--border);
+  border-radius: 12px;
+  padding: 0.45rem 0.7rem;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.8rem;
+  color: var(--text-dark);
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.grove-float-input:focus { border-color: var(--sage); }
+.grove-float-input::placeholder { color: var(--text-muted); }
+
+.grove-float-send {
+  background: var(--sage);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  width: 34px;
+  height: 34px;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.15s, transform 0.1s;
+}
+
+.grove-float-send:hover:not(:disabled) {
+  background: var(--sage-deep, #3d6b4a);
+  transform: translateY(-1px);
+}
+
+.grove-float-send:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.grove-panel {
+  margin-top: 1.5rem;
+  background: linear-gradient(145deg, var(--clay) 0%, color-mix(in srgb, var(--clay) 88%, #4a7c59 12%) 100%);
+  border-radius: 20px;
+  padding: 1.25rem;
+  box-shadow: var(--clay-out);
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.grove-header {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.grove-avatar { font-size: 1.6rem; line-height: 1; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.12)); }
+
+.grove-title-block { display: flex; flex-direction: column; gap: 0.1rem; }
+
+.grove-name { font-weight: 700; font-size: 0.92rem; color: var(--text-dark); }
+
+.grove-subtitle { font-size: 0.68rem; color: var(--sage); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; }
+
+.grove-messages {
+  max-height: 240px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  scrollbar-width: thin;
+  scrollbar-color: var(--sage-light) transparent;
+  padding-right: 0.25rem;
+}
+
+.grove-bubble {
+  font-size: 0.82rem;
+  line-height: 1.6;
+  border-radius: 14px;
+  padding: 0.6rem 0.85rem;
+  max-width: 88%;
+  animation: fadeIn 0.2s ease-out;
+  word-break: break-word;
+}
+
+.grove-bubble--grove {
+  background: var(--cream);
+  color: var(--text-dark);
+  align-self: flex-start;
+  box-shadow: var(--clay-in);
+  border-bottom-left-radius: 4px;
+}
+
+.grove-bubble--user {
+  background: var(--sage);
+  color: white;
+  align-self: flex-end;
+  border-bottom-right-radius: 4px;
+}
+
+.grove-cursor {
+  display: inline-block;
+  animation: blink 1s step-end infinite;
+  color: var(--sage);
+  margin-left: 1px;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
+}
+
+.grove-input-row { display: flex; gap: 0.5rem; align-items: center; }
+
+.grove-input {
+  flex: 1;
+  background: var(--cream);
+  border: 1.5px solid var(--border);
+  border-radius: 12px;
+  padding: 0.52rem 0.8rem;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.82rem;
+  color: var(--text-dark);
+  outline: none;
+  box-shadow: var(--clay-in);
+  transition: border-color 0.15s ease;
+}
+
+.grove-input:focus { border-color: var(--sage); }
+.grove-input::placeholder { color: var(--text-muted); }
+
+.grove-send-btn {
+  background: var(--sage);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  width: 36px;
+  height: 36px;
+  font-size: 1.05rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.15s ease, transform 0.1s ease;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+
+.grove-send-btn:hover:not(:disabled) { background: var(--sage-deep, #3d6b4a); transform: translateY(-1px); }
+.grove-send-btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }

@@ -22,7 +22,7 @@ from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 from semantic_kernel.contents import ChatHistory
 
-from backend.models.schemas import ChatRequest
+from backend.models.schemas import ChatRequest, OrchestratorResult
 from backend.agents import orchestrator, memory_agent
 from backend.agents import mindfulness_agent, journal_agent, habit_agent, insights_agent
 from backend.providers import cosmos_repository as db
@@ -149,9 +149,18 @@ async def chat(request: ChatRequest):
     """
     async def generate():
         try:
-            # 1. Orchestrator: classify intent
-            classification = await orchestrator.classify(request.message)
-            print(
+            # 1. Orchestrator: classify intent (skipped when agentOverride is set)
+            if request.agentOverride:
+                classification = OrchestratorResult(
+                    agent=request.agentOverride,
+                    confidence=1.0,
+                    mood="unknown",
+                    urgency="low",
+                )
+                print(f"[Orchestrator] agentOverride={request.agentOverride} — skipping classify")
+            else:
+                classification = await orchestrator.classify(request.message)
+                print(
                 f"[Orchestrator] agent={classification.agent} "
                 f"mood={classification.mood} urgency={classification.urgency}"
             )
