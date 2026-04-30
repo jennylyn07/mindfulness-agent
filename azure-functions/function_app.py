@@ -165,39 +165,36 @@ def unlog_habit(req: func.HttpRequest) -> func.HttpResponse:
         return func.HttpResponse(json.dumps({"error": str(e)}), status_code=500)
 
 
-# ── PATCH /api/habits/{habit_id} ──────────────────────────
-@app.route(route="habits/{habit_id}", methods=["PATCH"])
-def update_habit(req: func.HttpRequest) -> func.HttpResponse:
-    """Update habit fields (name, why, targetTime, durationMins)."""
+# ── PATCH + DELETE /api/habits/{habit_id} ─────────────────
+# Azure Functions Python v2: two @app.route decorators with the same route
+# string conflict at registration time — both return 500.
+# Fix: one handler, one route, dispatch on req.method internally.
+@app.route(route="habits/{habit_id}", methods=["PATCH", "DELETE"])
+def manage_habit(req: func.HttpRequest) -> func.HttpResponse:
+    """PATCH: update fields. DELETE: soft-delete (active=False)."""
     habit_id = req.route_params.get("habit_id", "")
     user_id = req.params.get("userId", DEMO_USER_ID)
     try:
-        body = req.get_json()
         container = _get_habits_container()
         habit = container.read_item(item=habit_id, partition_key=user_id)
 
+        if req.method == "DELETE":
+            habit["active"] = False
+            container.upsert_item(habit)
+            return func.HttpResponse(
+                json.dumps({"deleted": True, "id": habit_id}),
+                mimetype="application/json",
+                status_code=200,
+            )
+
+        # PATCH — update editable fields
+        body = req.get_json()
         for field in ("name", "why", "targetTime", "durationMins", "frequency"):
             if field in body:
                 habit[field] = body[field]
-
         container.upsert_item(habit)
         return func.HttpResponse(json.dumps(habit), mimetype="application/json", status_code=200)
-    except Exception as e:
-        return func.HttpResponse(json.dumps({"error": str(e)}), status_code=500)
 
-
-# ── DELETE /api/habits/{habit_id} ─────────────────────────
-@app.route(route="habits/{habit_id}", methods=["DELETE"])
-def delete_habit(req: func.HttpRequest) -> func.HttpResponse:
-    """Soft-delete: set active=False. Does not remove the document."""
-    habit_id = req.route_params.get("habit_id", "")
-    user_id = req.params.get("userId", DEMO_USER_ID)
-    try:
-        container = _get_habits_container()
-        habit = container.read_item(item=habit_id, partition_key=user_id)
-        habit["active"] = False
-        container.upsert_item(habit)
-        return func.HttpResponse(json.dumps({"deleted": True, "id": habit_id}), mimetype="application/json", status_code=200)
     except Exception as e:
         return func.HttpResponse(json.dumps({"error": str(e)}), status_code=500)
 

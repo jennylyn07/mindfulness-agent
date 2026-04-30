@@ -23,7 +23,15 @@ async def run():
         print("[ERROR] No entries found — check COSMOS credentials and seed data")
         return
 
-    # 2. Bulk index
+    # 2. Purge stale index docs, then re-index fresh
+    print()
+    print("Purging stale AI Search entries...")
+    purged = await search_provider.purge_index("demo-user-001")
+    print(f"  -> Purged: {purged} old documents")
+
+    import asyncio as _a2
+    await _a2.sleep(2)  # let deletions settle
+
     print()
     print("Bulk-indexing into Azure AI Search...")
     indexed = await search_provider.bulk_index(entries)

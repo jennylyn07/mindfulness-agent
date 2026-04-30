@@ -48,6 +48,12 @@ def days_ago(n: int) -> str:
 def date_str_days_ago(n: int) -> str:
     return (datetime.now(timezone.utc) - timedelta(days=n)).strftime("%Y-%m-%d")
 
+def det_id(collection: str, key: str) -> str:
+    """Deterministic UUID — same inputs always produce the same ID.
+    Prevents duplicate documents when seed.py is re-run.
+    """
+    return str(uuid.uuid5(uuid.NAMESPACE_DNS, f"{USER_ID}:{collection}:{key}"))
+
 
 # ── Seed Data ──────────────────────────────────────────────
 # Emotional arc: work stress peaks Days 13–11, Wednesday recovery pattern,
@@ -56,7 +62,7 @@ def date_str_days_ago(n: int) -> str:
 
 JOURNAL_ENTRIES = [
     {
-        "id": str(uuid.uuid4()), "userId": USER_ID,
+        "id": det_id("journal", "day-13"), "userId": USER_ID,
         "content": "Today was brutal. My manager keeps moving the goalposts on the project scope and I feel like nothing I do is ever enough. I stayed late again and I'm exhausted. I don't know how much longer I can keep this pace up.",
         "moodAtEntry": "anxious", "sentiment": "negative",
         "themes": ["work stress", "manager conflict", "exhaustion"],
@@ -64,7 +70,7 @@ JOURNAL_ENTRIES = [
         "agentUsed": "journal", "embedding": [], "timestamp": days_ago(13),
     },
     {
-        "id": str(uuid.uuid4()), "userId": USER_ID,
+        "id": det_id("journal", "day-12"), "userId": USER_ID,
         "content": "Another hard Monday. Woke up dreading the week already. The anxiety about the presentation my manager wants by Friday kept me up last night. I tried the box breathing thing this morning and it helped a little — maybe I'll try it again tonight.",
         "moodAtEntry": "anxious", "sentiment": "negative",
         "themes": ["work stress", "sleep issues", "breathing exercise"],
@@ -72,7 +78,7 @@ JOURNAL_ENTRIES = [
         "agentUsed": "journal", "embedding": [], "timestamp": days_ago(12),
     },
     {
-        "id": str(uuid.uuid4()), "userId": USER_ID,
+        "id": det_id("journal", "day-11"), "userId": USER_ID,
         "content": "I did the presentation. My manager barely acknowledged it and then immediately pointed out what was missing. I felt invisible. On the walk home I noticed I've been holding tension in my shoulders for weeks.",
         "moodAtEntry": "sad", "sentiment": "negative",
         "themes": ["manager conflict", "feeling invisible", "body awareness"],
@@ -80,7 +86,7 @@ JOURNAL_ENTRIES = [
         "agentUsed": "journal", "embedding": [], "timestamp": days_ago(11),
     },
     {
-        "id": str(uuid.uuid4()), "userId": USER_ID,
+        "id": det_id("journal", "day-10"), "userId": USER_ID,
         "content": "Wednesday is always better for some reason. Had a good conversation with a colleague about the manager situation — apparently others feel the same way. Did my morning meditation today, first time in a week.",
         "moodAtEntry": "okay", "sentiment": "neutral",
         "themes": ["work stress", "connection", "morning meditation"],
@@ -88,7 +94,7 @@ JOURNAL_ENTRIES = [
         "agentUsed": "journal", "embedding": [], "timestamp": days_ago(10),
     },
     {
-        "id": str(uuid.uuid4()), "userId": USER_ID,
+        "id": det_id("journal", "day-9"), "userId": USER_ID,
         "content": "Thursday felt lighter. I've noticed I'm almost always more anxious on Mondays and Tuesdays — by Wednesday something shifts. The meditation this morning was really grounding. Maybe there's something to this consistency thing.",
         "moodAtEntry": "good", "sentiment": "positive",
         "themes": ["mood patterns", "morning meditation", "consistency"],
@@ -96,7 +102,7 @@ JOURNAL_ENTRIES = [
         "agentUsed": "journal", "embedding": [], "timestamp": days_ago(9),
     },
     {
-        "id": str(uuid.uuid4()), "userId": USER_ID,
+        "id": det_id("journal", "day-8"), "userId": USER_ID,
         "content": "Long week but I made it. Manager situation is the same but I feel less reactive to it today. The ones where I don't look at my phone first thing are noticeably calmer. Need to test this properly.",
         "moodAtEntry": "good", "sentiment": "positive",
         "themes": ["manager conflict", "morning routine", "phone habits"],
@@ -104,7 +110,7 @@ JOURNAL_ENTRIES = [
         "agentUsed": "journal", "embedding": [], "timestamp": days_ago(8),
     },
     {
-        "id": str(uuid.uuid4()), "userId": USER_ID,
+        "id": det_id("journal", "day-7"), "userId": USER_ID,
         "content": "Weekend was restorative. Went for a walk without headphones and just let my mind wander. It felt strange at first but I noticed I wasn't thinking about work at all after about ten minutes.",
         "moodAtEntry": "good", "sentiment": "positive",
         "themes": ["rest", "nature", "mental space"],
@@ -112,7 +118,7 @@ JOURNAL_ENTRIES = [
         "agentUsed": "journal", "embedding": [], "timestamp": days_ago(7),
     },
     {
-        "id": str(uuid.uuid4()), "userId": USER_ID,
+        "id": det_id("journal", "day-6"), "userId": USER_ID,
         "content": "Monday again. Smaller anxiety spike than usual — noticed it and did the box breathing before the stand-up meeting. It helped me stay calm when my manager criticized the timeline in front of the team.",
         "moodAtEntry": "anxious", "sentiment": "neutral",
         "themes": ["work stress", "breathing exercise", "manager conflict"],
@@ -120,7 +126,7 @@ JOURNAL_ENTRIES = [
         "agentUsed": "journal", "embedding": [], "timestamp": days_ago(6),
     },
     {
-        "id": str(uuid.uuid4()), "userId": USER_ID,
+        "id": det_id("journal", "day-5"), "userId": USER_ID,
         "content": "Something clicked today. I realized I've been trying to get my manager to validate my work — and that's not something I can control. The only thing I can control is how I show up. That feels like a real shift.",
         "moodAtEntry": "okay", "sentiment": "positive",
         "themes": ["work stress", "control", "self-awareness", "boundary"],
@@ -128,7 +134,7 @@ JOURNAL_ENTRIES = [
         "agentUsed": "journal", "embedding": [], "timestamp": days_ago(5),
     },
     {
-        "id": str(uuid.uuid4()), "userId": USER_ID,
+        "id": det_id("journal", "day-4"), "userId": USER_ID,
         "content": "BREAKTHROUGH DAY. I've been keeping my phone off until 9am this week and the mornings feel completely different. Less reactive, more present. This is the thing. I'm going to make this a proper habit.",
         "moodAtEntry": "great", "sentiment": "positive",
         "themes": ["phone habits", "morning routine", "breakthrough", "habit formation"],
@@ -136,7 +142,7 @@ JOURNAL_ENTRIES = [
         "agentUsed": "journal", "embedding": [], "timestamp": days_ago(4),
     },
     {
-        "id": str(uuid.uuid4()), "userId": USER_ID,
+        "id": det_id("journal", "day-3"), "userId": USER_ID,
         "content": "Five days of morning meditation in a row. I can see the streak and it actually motivates me — but not in a guilty way, more like genuine pride. The journal entries this week have all been calmer in tone.",
         "moodAtEntry": "great", "sentiment": "positive",
         "themes": ["morning meditation", "streak", "self-compassion", "mood improvement"],
@@ -144,7 +150,7 @@ JOURNAL_ENTRIES = [
         "agentUsed": "journal", "embedding": [], "timestamp": days_ago(3),
     },
     {
-        "id": str(uuid.uuid4()), "userId": USER_ID,
+        "id": det_id("journal", "day-2"), "userId": USER_ID,
         "content": "Had a difficult conversation with my manager today. But unlike two weeks ago, I stayed regulated. I said what I needed to say clearly. I was actually surprised at myself. The breathing practice is doing something.",
         "moodAtEntry": "okay", "sentiment": "positive",
         "themes": ["manager conflict", "self-regulation", "breathing exercise", "progress"],
@@ -152,7 +158,7 @@ JOURNAL_ENTRIES = [
         "agentUsed": "journal", "embedding": [], "timestamp": days_ago(2),
     },
     {
-        "id": str(uuid.uuid4()), "userId": USER_ID,
+        "id": det_id("journal", "day-1"), "userId": USER_ID,
         "content": "Sunday evenings used to make me dread the week ahead. Tonight I noticed the old anxiety trying to creep in but it didn't take hold. I think I'm building something real here.",
         "moodAtEntry": "good", "sentiment": "positive",
         "themes": ["sunday anxiety", "mood patterns", "resilience", "growth"],
@@ -160,7 +166,7 @@ JOURNAL_ENTRIES = [
         "agentUsed": "journal", "embedding": [], "timestamp": days_ago(1),
     },
     {
-        "id": str(uuid.uuid4()), "userId": USER_ID,
+        "id": det_id("journal", "day-0"), "userId": USER_ID,
         "content": "Starting this week with meditation already done. Feels different to begin the day having already done something for myself. The phone-off-until-9 rule is holding. I feel ready.",
         "moodAtEntry": "great", "sentiment": "positive",
         "themes": ["morning routine", "self-care", "readiness", "consistency"],
@@ -170,25 +176,25 @@ JOURNAL_ENTRIES = [
 ]
 
 MOOD_LOGS = [
-    {"id": str(uuid.uuid4()), "userId": USER_ID, "mood": "anxious", "score": 2, "context": "evening_checkin",  "note": "Rough day at work",                   "timestamp": days_ago(13)},
-    {"id": str(uuid.uuid4()), "userId": USER_ID, "mood": "anxious", "score": 3, "context": "morning_checkin", "note": "Dreading the week",                   "timestamp": days_ago(12)},
-    {"id": str(uuid.uuid4()), "userId": USER_ID, "mood": "sad",     "score": 3, "context": "evening_checkin",  "note": "Presentation went badly",             "timestamp": days_ago(11)},
-    {"id": str(uuid.uuid4()), "userId": USER_ID, "mood": "okay",    "score": 5, "context": "morning_checkin", "note": "Wednesday — usually better",           "timestamp": days_ago(10)},
-    {"id": str(uuid.uuid4()), "userId": USER_ID, "mood": "good",    "score": 7, "context": "morning_checkin", "note": "Meditation helped",                    "timestamp": days_ago(9)},
-    {"id": str(uuid.uuid4()), "userId": USER_ID, "mood": "good",    "score": 6, "context": "evening_checkin",  "note": "Less reactive today",                 "timestamp": days_ago(8)},
-    {"id": str(uuid.uuid4()), "userId": USER_ID, "mood": "good",    "score": 7, "context": "morning_checkin", "note": "Weekend restoration",                  "timestamp": days_ago(7)},
-    {"id": str(uuid.uuid4()), "userId": USER_ID, "mood": "anxious", "score": 4, "context": "morning_checkin", "note": "Monday but managed it",                "timestamp": days_ago(6)},
-    {"id": str(uuid.uuid4()), "userId": USER_ID, "mood": "okay",    "score": 6, "context": "evening_checkin",  "note": "Big mindset shift today",             "timestamp": days_ago(5)},
-    {"id": str(uuid.uuid4()), "userId": USER_ID, "mood": "great",   "score": 8, "context": "morning_checkin", "note": "Phone off until 9 — different feeling","timestamp": days_ago(4)},
-    {"id": str(uuid.uuid4()), "userId": USER_ID, "mood": "great",   "score": 9, "context": "morning_checkin", "note": "5 day streak — proud",                 "timestamp": days_ago(3)},
-    {"id": str(uuid.uuid4()), "userId": USER_ID, "mood": "okay",    "score": 7, "context": "evening_checkin",  "note": "Stayed regulated in hard convo",      "timestamp": days_ago(2)},
-    {"id": str(uuid.uuid4()), "userId": USER_ID, "mood": "good",    "score": 8, "context": "evening_checkin",  "note": "Sunday anxiety smaller than usual",   "timestamp": days_ago(1)},
-    {"id": str(uuid.uuid4()), "userId": USER_ID, "mood": "great",   "score": 9, "context": "morning_checkin", "note": "Ready for the week",                   "timestamp": days_ago(0)},
+    {"id": det_id("mood", "day-13"), "userId": USER_ID, "mood": "anxious", "score": 2, "context": "evening_checkin",  "note": "Rough day at work",                   "timestamp": days_ago(13)},
+    {"id": det_id("mood", "day-12"), "userId": USER_ID, "mood": "anxious", "score": 3, "context": "morning_checkin", "note": "Dreading the week",                   "timestamp": days_ago(12)},
+    {"id": det_id("mood", "day-11"), "userId": USER_ID, "mood": "sad",     "score": 3, "context": "evening_checkin",  "note": "Presentation went badly",             "timestamp": days_ago(11)},
+    {"id": det_id("mood", "day-10"), "userId": USER_ID, "mood": "okay",    "score": 5, "context": "morning_checkin", "note": "Wednesday — usually better",           "timestamp": days_ago(10)},
+    {"id": det_id("mood", "day-9"),  "userId": USER_ID, "mood": "good",    "score": 7, "context": "morning_checkin", "note": "Meditation helped",                    "timestamp": days_ago(9)},
+    {"id": det_id("mood", "day-8"),  "userId": USER_ID, "mood": "good",    "score": 6, "context": "evening_checkin",  "note": "Less reactive today",                 "timestamp": days_ago(8)},
+    {"id": det_id("mood", "day-7"),  "userId": USER_ID, "mood": "good",    "score": 7, "context": "morning_checkin", "note": "Weekend restoration",                  "timestamp": days_ago(7)},
+    {"id": det_id("mood", "day-6"),  "userId": USER_ID, "mood": "anxious", "score": 4, "context": "morning_checkin", "note": "Monday but managed it",                "timestamp": days_ago(6)},
+    {"id": det_id("mood", "day-5"),  "userId": USER_ID, "mood": "okay",    "score": 6, "context": "evening_checkin",  "note": "Big mindset shift today",             "timestamp": days_ago(5)},
+    {"id": det_id("mood", "day-4"),  "userId": USER_ID, "mood": "great",   "score": 8, "context": "morning_checkin", "note": "Phone off until 9 — different feeling","timestamp": days_ago(4)},
+    {"id": det_id("mood", "day-3"),  "userId": USER_ID, "mood": "great",   "score": 9, "context": "morning_checkin", "note": "5 day streak — proud",                 "timestamp": days_ago(3)},
+    {"id": det_id("mood", "day-2"),  "userId": USER_ID, "mood": "okay",    "score": 7, "context": "evening_checkin",  "note": "Stayed regulated in hard convo",      "timestamp": days_ago(2)},
+    {"id": det_id("mood", "day-1"),  "userId": USER_ID, "mood": "good",    "score": 8, "context": "evening_checkin",  "note": "Sunday anxiety smaller than usual",   "timestamp": days_ago(1)},
+    {"id": det_id("mood", "day-0"),  "userId": USER_ID, "mood": "great",   "score": 9, "context": "morning_checkin", "note": "Ready for the week",                   "timestamp": days_ago(0)},
 ]
 
 HABITS = [
     {
-        "id": str(uuid.uuid4()), "userId": USER_ID,
+        "id": det_id("habit", "morning-meditation"), "userId": USER_ID,
         "name": "Morning meditation",
         "why": "To feel grounded and less reactive before the workday starts",
         "frequency": "daily", "targetTime": "07:30", "durationMins": 10,
@@ -196,7 +202,7 @@ HABITS = [
         "currentStreak": 5, "longestStreak": 10, "active": True,
     },
     {
-        "id": str(uuid.uuid4()), "userId": USER_ID,
+        "id": det_id("habit", "evening-journal"), "userId": USER_ID,
         "name": "Evening journal",
         "why": "To process my day and stop carrying unresolved thoughts to bed",
         "frequency": "daily", "targetTime": "21:00", "durationMins": 15,
@@ -204,7 +210,7 @@ HABITS = [
         "currentStreak": 8, "longestStreak": 8, "active": True,
     },
     {
-        "id": str(uuid.uuid4()), "userId": USER_ID,
+        "id": det_id("habit", "phone-off-9am"), "userId": USER_ID,
         "name": "Phone off until 9am",
         "why": "Mornings without my phone feel completely different — calmer and more present",
         "frequency": "daily", "targetTime": "09:00", "durationMins": 0,
@@ -212,7 +218,7 @@ HABITS = [
         "currentStreak": 5, "longestStreak": 5, "active": True,
     },
     {
-        "id": str(uuid.uuid4()), "userId": USER_ID,
+        "id": det_id("habit", "30-min-walk"), "userId": USER_ID,
         "name": "30 minute walk",
         "why": "To get out of my head and into my body",
         "frequency": "daily", "targetTime": "17:00", "durationMins": 30,
@@ -220,7 +226,7 @@ HABITS = [
         "currentStreak": 1, "longestStreak": 3, "active": True,
     },
     {
-        "id": str(uuid.uuid4()), "userId": USER_ID,
+        "id": det_id("habit", "no-screens-9pm"), "userId": USER_ID,
         "name": "No screens after 9pm",
         "why": "Better sleep means better everything the next day",
         "frequency": "daily", "targetTime": "21:00", "durationMins": 0,

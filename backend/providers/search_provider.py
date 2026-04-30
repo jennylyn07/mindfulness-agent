@@ -32,6 +32,34 @@ def _get_client() -> SearchClient:
     )
 
 
+async def purge_index(user_id: str) -> int:
+    """
+    Delete ALL documents for a given userId from the search index.
+    Call this before bulk_index() to avoid stale entries accumulating.
+    Returns number of documents deleted.
+    """
+    if not _SEARCH_ENDPOINT or not _SEARCH_KEY:
+        return 0
+    try:
+        client = _get_client()
+        results = client.search(
+            search_text="*",
+            filter=f"userId eq '{user_id}'",
+            select=["id"],
+            top=1000,
+        )
+        docs_to_delete = [{"id": r["id"]} for r in results]
+        if not docs_to_delete:
+            print(f"[SearchProvider] No existing docs for {user_id} to purge")
+            return 0
+        client.delete_documents(documents=docs_to_delete)
+        print(f"[SearchProvider] Purged {len(docs_to_delete)} stale docs for {user_id}")
+        return len(docs_to_delete)
+    except Exception as e:
+        print(f"[SearchProvider] purge_index() error: {e}")
+        return 0
+
+
 async def bulk_index(entries: List[dict]) -> int:
     """
     Upsert journal entries into the AI Search index.

@@ -13,7 +13,7 @@ _DEMO_USER_ID = os.getenv("DEMO_USER_ID", "demo-user-001")
 
 
 @router.get("/journal")
-async def get_journal(userId: str = _DEMO_USER_ID, limit: int = 10):
-    """Return the N most recent journal entries for a user."""
+async def get_journal(userId: str = _DEMO_USER_ID, limit: int = 50):
+    """Return the N most recent journal entries for a user (default 50)."""
     entries = await db.get_recent_journal_entries(userId, limit=limit)
     return entries

@@ -143,6 +143,11 @@ async def write(
         )
 
         raw = response.choices[0].message.content or '{"facts": []}'
+        # Strip markdown code fences if the model wrapped its JSON response
+        raw = raw.strip()
+        if raw.startswith("```"):
+            raw = raw.split("\n", 1)[-1]          # drop opening ```json line
+            raw = raw.rsplit("```", 1)[0].strip()  # drop closing ``` line
         extracted = json.loads(raw)
         new_facts = extracted.get("facts", [])
 
