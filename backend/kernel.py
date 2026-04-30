@@ -21,7 +21,7 @@ load_dotenv(dotenv_path=_ENV_PATH, override=True)
 _RAW_ENDPOINT = os.getenv("AZURE_OPENAI_ENDPOINT", "")
 _KEY = os.getenv("AZURE_OPENAI_KEY", "")
 _DEPLOYMENT = os.getenv("AZURE_OPENAI_DEPLOYMENT", "gpt-4o")
-_EMBED_DEPLOYMENT = os.getenv("AZURE_OPENAI_EMBED_DEPLOYMENT", "text-embedding-3-small")
+_EMBED_DEPLOYMENT = os.getenv("AZURE_OPENAI_EMBED_DEPLOYMENT", "text-embedding-3-small-1")
 _API_VERSION = os.getenv("AZURE_OPENAI_API_VERSION", "2024-02-01")
 
 # Azure AI Foundry endpoints include /openai/v1 — strip to base domain only.
@@ -67,7 +67,7 @@ def build_kernel() -> Kernel:
 
 async def get_embedding(text: str) -> list[float]:
     """
-    Generate a text embedding using text-embedding-3-small.
+    Generate a text embedding using text-embedding-3-small-1.
     Returns a 1536-dimension float vector.
     Smoke-tested in Hour 2 — must return len(vector) == 1536.
     """

@@ -382,7 +382,7 @@ This is what makes Lumen feel like it actually knows your history — it does, b
 
 **What is a vector and why does it enable semantic search?**
 
-A vector is a list of numbers — in our case, 1536 numbers. The embedding model (text-embedding-ada-002) converts any piece of text into this list. Similar texts produce similar vectors. The similarity between two vectors can be measured mathematically (cosine similarity).
+A vector is a list of numbers — in our case, 1536 numbers. The embedding model (`text-embedding-3-small-1`) converts any piece of text into this list. Similar texts produce similar vectors. The similarity between two vectors can be measured mathematically (cosine similarity).
 
 So if you ask "Why do I feel anxious at work?" and an old journal entry says "I felt overwhelmed during the project deadline," the vectors for both texts will be close to each other — even though no exact words match. This is why AI Search finds relevant entries that keyword search would miss.
 
