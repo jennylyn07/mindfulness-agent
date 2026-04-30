@@ -128,6 +128,80 @@ def log_habit(req: func.HttpRequest) -> func.HttpResponse:
         return func.HttpResponse(json.dumps({"error": str(e)}), status_code=500)
 
 
+
+# ── PATCH /api/habits/{habit_id}/unlog ────────────────────
+@app.route(route="habits/{habit_id}/unlog", methods=["PATCH"])
+def unlog_habit(req: func.HttpRequest) -> func.HttpResponse:
+    """Remove today's log entry (uncheck). Recalculates streak."""
+    habit_id = req.route_params.get("habit_id", "")
+    user_id = req.params.get("userId", DEMO_USER_ID)
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    try:
+        container = _get_habits_container()
+        habit = container.read_item(item=habit_id, partition_key=user_id)
+
+        logs: list = habit.get("logs", [])
+        if today in logs:
+            logs.remove(today)
+
+        # Recalculate streak from scratch
+        streak = 0
+        check = datetime.now(timezone.utc).date()
+        for date_str in reversed(sorted(logs)):
+            log_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+            diff = (check - log_date).days
+            if diff == streak:
+                streak += 1
+                check = log_date
+            else:
+                break
+
+        habit["logs"] = logs
+        habit["currentStreak"] = streak
+        # longestStreak stays unchanged — don't reduce it on unlog
+        container.upsert_item(habit)
+        return func.HttpResponse(json.dumps(habit), mimetype="application/json", status_code=200)
+    except Exception as e:
+        return func.HttpResponse(json.dumps({"error": str(e)}), status_code=500)
+
+
+# ── PATCH /api/habits/{habit_id} ──────────────────────────
+@app.route(route="habits/{habit_id}", methods=["PATCH"])
+def update_habit(req: func.HttpRequest) -> func.HttpResponse:
+    """Update habit fields (name, why, targetTime, durationMins)."""
+    habit_id = req.route_params.get("habit_id", "")
+    user_id = req.params.get("userId", DEMO_USER_ID)
+    try:
+        body = req.get_json()
+        container = _get_habits_container()
+        habit = container.read_item(item=habit_id, partition_key=user_id)
+
+        for field in ("name", "why", "targetTime", "durationMins", "frequency"):
+            if field in body:
+                habit[field] = body[field]
+
+        container.upsert_item(habit)
+        return func.HttpResponse(json.dumps(habit), mimetype="application/json", status_code=200)
+    except Exception as e:
+        return func.HttpResponse(json.dumps({"error": str(e)}), status_code=500)
+
+
+# ── DELETE /api/habits/{habit_id} ─────────────────────────
+@app.route(route="habits/{habit_id}", methods=["DELETE"])
+def delete_habit(req: func.HttpRequest) -> func.HttpResponse:
+    """Soft-delete: set active=False. Does not remove the document."""
+    habit_id = req.route_params.get("habit_id", "")
+    user_id = req.params.get("userId", DEMO_USER_ID)
+    try:
+        container = _get_habits_container()
+        habit = container.read_item(item=habit_id, partition_key=user_id)
+        habit["active"] = False
+        container.upsert_item(habit)
+        return func.HttpResponse(json.dumps({"deleted": True, "id": habit_id}), mimetype="application/json", status_code=200)
+    except Exception as e:
+        return func.HttpResponse(json.dumps({"error": str(e)}), status_code=500)
+
+
 # ── POST /api/mood ─────────────────────────────────────────
 @app.route(route="mood", methods=["POST"])
 def log_mood(req: func.HttpRequest) -> func.HttpResponse:

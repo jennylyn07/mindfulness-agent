@@ -109,6 +109,22 @@ export default function InsightsDashboard({ userId }: InsightsDashboardProps) {
         </div>
       )}
 
+      {/* Mood frequency pills */}
+      {Object.keys(moodCounts).length > 0 && (
+        <div className="insights-card">
+          <p className="insights-section-label">Mood breakdown</p>
+          <div className="mood-freq-row">
+            {Object.entries(moodCounts)
+              .sort((a, b) => b[1] - a[1])
+              .map(([mood, count]) => (
+                <span key={mood} className={`mood-freq-pill mood-freq-${mood}`}>
+                  {MOOD_EMOJI[mood] ?? '😐'} {mood} ×{count}
+                </span>
+              ))}
+          </div>
+        </div>
+      )}
+
       {/* Lumen prompt card */}
       <div className="insights-card lumen-prompt">
         <p className="lumen-prompt-text">

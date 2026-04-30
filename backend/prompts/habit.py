@@ -27,4 +27,13 @@ When a habit is struggling (low streak or missed days):
 - One small reset suggestion: "What would a 5-minute version of this look like?"
 
 User context injected by Memory Agent:
-{memoryContext}"""
+{memoryContext}
+
+Active habits:
+{habitList}
+
+Completed today:
+{todayLogs}
+
+Current streaks:
+{streaks}"""

@@ -7,7 +7,7 @@ Frontend never calls Azure Functions directly.
 import os
 import httpx
 from fastapi import APIRouter, HTTPException
-from backend.models.schemas import HabitCreate
+from backend.models.schemas import HabitCreate, HabitUpdate
 
 router = APIRouter()
 
@@ -49,6 +49,54 @@ async def log_habit(habit_id: str, userId: str = _DEMO_USER_ID):
         try:
             r = await client.patch(
                 f"{_FUNCTIONS_HABIT_URL}/api/habits/{habit_id}/log",
+                params={"userId": userId},
+            )
+            r.raise_for_status()
+            return r.json()
+        except httpx.RequestError as e:
+            raise HTTPException(status_code=503, detail=f"Habits function unreachable: {e}")
+
+
+@router.patch("/habits/{habit_id}/unlog")
+async def unlog_habit(habit_id: str, userId: str = _DEMO_USER_ID):
+    """Remove today's log (uncheck). Fully synced with Cosmos via Azure Functions."""
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        try:
+            r = await client.patch(
+                f"{_FUNCTIONS_HABIT_URL}/api/habits/{habit_id}/unlog",
+                params={"userId": userId},
+            )
+            r.raise_for_status()
+            return r.json()
+        except httpx.RequestError as e:
+            raise HTTPException(status_code=503, detail=f"Habits function unreachable: {e}")
+
+
+@router.patch("/habits/{habit_id}")
+async def update_habit(habit_id: str, body: HabitUpdate, userId: str = _DEMO_USER_ID):
+    """Update habit name, why, or other editable fields."""
+    # Only send fields that were actually provided
+    payload = {k: v for k, v in body.model_dump().items() if v is not None}
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        try:
+            r = await client.patch(
+                f"{_FUNCTIONS_HABIT_URL}/api/habits/{habit_id}",
+                json=payload,
+                params={"userId": userId},
+            )
+            r.raise_for_status()
+            return r.json()
+        except httpx.RequestError as e:
+            raise HTTPException(status_code=503, detail=f"Habits function unreachable: {e}")
+
+
+@router.delete("/habits/{habit_id}")
+async def delete_habit(habit_id: str, userId: str = _DEMO_USER_ID):
+    """Soft-delete: sets active=false in Cosmos."""
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        try:
+            r = await client.delete(
+                f"{_FUNCTIONS_HABIT_URL}/api/habits/{habit_id}",
                 params={"userId": userId},
             )
             r.raise_for_status()

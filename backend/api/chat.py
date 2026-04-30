@@ -58,10 +58,34 @@ async def _get_specialist(agent_name: str, memory_context: str, user_id: str = "
     """Return the correct ChatCompletionAgent for the classified intent."""
     if agent_name == "mindfulness":
         return mindfulness_agent.get_agent(memory_context)
+
     if agent_name == "habit":
-        return habit_agent.get_agent(memory_context)
+        # Fetch live habit data from Cosmos so Grove knows your actual streaks
+        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        try:
+            habits = await db.get_habits(user_id)
+        except Exception:
+            habits = []
+        if habits:
+            habit_list = "\n".join(
+                f"- {h['name']} (why: {h.get('why', '—')})" for h in habits
+            )
+            today_logs = "\n".join(
+                f"- {h['name']} ✓" for h in habits if today in h.get("logs", [])
+            ) or "None completed yet today."
+            streaks = "\n".join(
+                f"- {h['name']}: {h.get('currentStreak', 0)} day streak"
+                for h in habits
+            )
+        else:
+            habit_list = "No active habits yet."
+            today_logs = "None completed yet today."
+            streaks = "No streaks yet."
+        return habit_agent.get_agent(memory_context, habit_list, today_logs, streaks)
+
     if agent_name == "insights":
         return await insights_agent.get_agent(user_id, user_message, memory_context)
+
     return journal_agent.get_agent(memory_context)  # default + journal
 
 
@@ -162,6 +186,7 @@ async def chat(request: ChatRequest):
             full_response = ""
             buffer = ""
             in_save_block = False
+            _HOLD = len(_SAVE_START)  # hold back 13 chars to catch partial tags
 
             # Yield agent name as first token so frontend can show agent badge
             yield f"[AGENT:{classification.agent}]\n"
@@ -178,18 +203,31 @@ async def chat(request: ChatRequest):
                     if not in_save_block and _SAVE_START in buffer:
                         in_save_block = True
                         pre = buffer[: buffer.index(_SAVE_START)]
-                        if pre:
-                            yield pre
-                            full_response += pre
+                        unsent = pre[len(full_response):]
+                        if unsent:
+                            yield unsent
+                            full_response += unsent
+
                     elif not in_save_block:
-                        yield content
-                        full_response += content
+                        # Only yield what's safely before any potential [SAVE_ENTRY] prefix
+                        safe_end = max(len(full_response), len(buffer) - _HOLD)
+                        safe_content = buffer[len(full_response): safe_end]
+                        if safe_content:
+                            yield safe_content
+                            full_response += safe_content
 
                     if in_save_block and _SAVE_END in buffer:
                         asyncio.ensure_future(
                             _parse_and_save_entry(buffer, request.userId)
                         )
                         break
+
+                # Flush remaining held-back content if no SAVE_ENTRY was encountered
+                if not in_save_block:
+                    remaining = buffer[len(full_response):]
+                    if remaining:
+                        yield remaining
+                        full_response += remaining
 
             except ValueError as e:
                 # OpenTelemetry context cleanup error — harmless.

@@ -471,5 +471,103 @@ OpenTelemetry is an observability framework that Semantic Kernel uses to trace L
 
 ---
 
-*Next: Phase 10 — Demo dry-run, ngrok tunnel, final visual polish*
+---
+
+## Phase 10 — UI Polish + Error States
+
+### Dev Log
+
+**What got built / fixed**
+- `frontend/components/HabitTracker.tsx` — Added full error state with retry button. If the habits fetch fails (Azure Functions unreachable, Cosmos timeout), the user sees a clear message with a Retry button rather than a blank card or a silent spinner.
+- `frontend/components/InsightsDashboard.tsx` — Same error state treatment. If `GET /insights` fails, a friendly message appears with retry. Prevents the dashboard tab from appearing broken during demo if there's a cold-start delay.
+- Both components: retry logic uses a `retryCount` state increment to re-trigger the `useEffect` data fetch, keeping the fetch logic in one place.
+
+**What broke and how it was fixed**
+
+Nothing broke. This was a focused polish pass — all changes were additive UI improvements.
+
+**Commit**
+- `polish: add error states with retry to HabitTracker and InsightsDashboard`
+
+---
+
+### Learning Report
+
+**Why add error states at all — won't everything just work?**
+
+In a demo environment, Azure services occasionally have cold starts (the first request after inactivity can take 5–15 seconds). Azure Functions in particular can be slow on the first call. Without error states, the user sees a blank white card with a spinner that never resolves — which looks broken and creates panic during a presentation.
+
+With an error state and a retry button, even if the first call fails, one tap recovers it. This is the difference between a demo that looks polished and one that looks fragile.
+
+**What is a retry pattern?**
+
+Instead of the component re-fetching automatically (which can cause infinite loops on genuine errors), we use a `retryCount` integer in state. Clicking Retry increments it by 1. The `useEffect` dependency array includes `retryCount`, so React re-runs the data fetch every time it changes. One tap = one retry = clean and predictable.
+
+---
+
+---
+
+## Phase 11 — Current Session: Embedding Consistency + Re-seed + Re-index + User API
+
+### Dev Log
+
+**What this session addressed**
+This session focused on data consistency and correctness before demo day: verifying the embedding model name was correct everywhere, re-seeding Cosmos with fresh data, re-indexing into AI Search, and adding the `/user` endpoint for dynamic name retrieval.
+
+**What got built / fixed**
+
+| Fix | Root cause | Resolution |
+|---|---|---|
+| Embedding model fallback default wrong | `kernel.py` fallback was `"text-embedding-3-small"` (no `-1` suffix). `.env` had the correct value so runtime was unaffected, but the fallback would fail if `.env` was ever missing. | Changed fallback to `"text-embedding-3-small-1"` in `kernel.py`. |
+| `.env.example` had wrong embed name | Template showed `text-embedding-3-small` without `-1`. Anyone copying this to set up the project would get a 404 from Azure. | Updated `.env.example` to `text-embedding-3-small-1`. |
+| DEVLOG.md learning note referenced `ada-002` | An educational explanation used `text-embedding-ada-002` as an example. | Updated to `text-embedding-3-small-1` so documentation is consistent with the actual deployment. |
+| Seed script crashed on Windows (emoji encoding) | Windows terminals default to `cp1252` which can't print emoji (`🌱`, `✅`, `⚠️`). `UnicodeEncodeError` on first `print()`. | Added `sys.stdout.reconfigure(encoding="utf-8")` at the top of `seed.py`, guarded by `if sys.platform == "win32"`. |
+| AI Search index stale after re-seed | Re-seeding creates new document IDs. The old indexed documents in AI Search had different IDs — Lumen's RAG would return stale data. | Re-ran `bulk_index.py` after re-seed. All 20 entries (14 from today's seed + 6 from prior test entries) indexed successfully. RAG test query confirmed working. |
+| User name hardcoded in frontend | Frontend references to `"Jen"` were static strings instead of reading from the database. | Created `backend/api/user.py` — `GET /user` reads the user document from Cosmos and returns `displayName`, `email`, `preferences`. Registered in `main.py`. Frontend can now call this endpoint to get the real name. |
+
+**Seed result**
+```
+✓ User upserted: Jen (demo-user-001)
+✓ Journal entries upserted: 14
+✓ Habits upserted: 5
+✓ Mood logs upserted: 14
+✓ User memory upserted (5 facts)
+✅ Seed complete. Demo account is ready.
+```
+
+**Bulk index result**
+```
+→ Found 20 entries
+→ Indexed: 20/20 documents
+Test query: 'feeling anxious' → Results returned (3 semantically relevant entries)
+```
+
+**Commits**
+- `fix: correct embedding model name to text-embedding-3-small-1 across all files`
+- (pending) `polish: UI refinements, dynamic user name, seed encoding fix, user API`
+
+---
+
+### Learning Report
+
+**Why does the fallback value matter if `.env` overrides it anyway?**
+
+The fallback in `os.getenv("VAR", "default")` is only used when the environment variable is missing entirely. In practice, `.env` is always present during development. But there are scenarios where it could be missing — a fresh clone without running setup, a CI environment, or a misconfigured deployment. In those cases, the fallback kicks in. If the fallback is wrong, the embed call silently sends the wrong model name to Azure and gets a 404, which is very confusing to debug. Correct fallbacks are defensive programming — they cost nothing and prevent hard-to-trace failures.
+
+**Why does Windows have an encoding problem with emoji?**
+
+Windows uses a legacy encoding called `cp1252` (also called Windows-1252) for its terminal by default. This encoding dates back to the 1980s and can only represent 256 characters — none of which are emoji. When Python tries to print `🌱` to a cp1252 terminal, it raises `UnicodeEncodeError` immediately.
+
+`sys.stdout.reconfigure(encoding="utf-8")` tells Python to switch the terminal's output stream to UTF-8, which supports all Unicode characters including emoji. This only applies to the current process — it doesn't change your system settings.
+
+**What does the `/user` endpoint enable?**
+
+Instead of `"Hello, Jen!"` being hardcoded in the frontend JavaScript, the frontend calls `GET /user` at startup and gets `{ displayName: "Jen" }` from Cosmos. This means:
+- If you change the name in the database, the UI reflects it immediately — no code change
+- The demo works for any user ID, not just the one whose name was hardcoded
+- It demonstrates a proper data-driven architecture to judges: the UI is a view over real data, not a mock
+
+---
+
+*Status: Backend running. AI Search indexed. Demo data seeded. Pending commit of all UI refinements.*
 

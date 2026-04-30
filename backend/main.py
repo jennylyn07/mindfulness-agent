@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 
-from backend.api import chat, habits, mood, journal, insights
+from backend.api import chat, habits, mood, journal, insights, user
 
 # Load backend/.env relative to this file — safe regardless of CWD
 import os as _os
@@ -21,13 +21,14 @@ app.add_middleware(
         "http://localhost:3000",
         os.getenv("FRONTEND_URL", ""),
     ],
-    allow_methods=["GET", "POST", "PATCH"],
+    allow_methods=["GET", "POST", "PATCH", "DELETE", "PUT"],
     allow_headers=["Content-Type"],
 )
 
 # ── Routers ────────────────────────────────────────────────
 app.include_router(chat.router)
 app.include_router(habits.router)
+app.include_router(user.router)
 app.include_router(mood.router)
 app.include_router(journal.router)
 app.include_router(insights.router)

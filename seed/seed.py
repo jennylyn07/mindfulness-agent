@@ -17,6 +17,10 @@ in Hour 7 using the running FastAPI backend's embed endpoint.
 
 import os
 import sys
+
+# Windows terminals default to cp1252 — force UTF-8 so emoji prints correctly
+if sys.platform == "win32":
+    sys.stdout.reconfigure(encoding="utf-8")
 import uuid
 from datetime import datetime, timedelta, timezone
 from azure.cosmos import CosmosClient, PartitionKey
@@ -279,7 +283,7 @@ USER_MEMORY = {
 USER = {
     "id": USER_ID, "userId": USER_ID,
     "email": "demo@mindflow.app",
-    "displayName": "Alex",
+    "displayName": "Jen",
     "timezone": "Asia/Manila",
     "preferences": {"morningCheckIn": True, "tone": "warm"},
     "createdAt": days_ago(14),

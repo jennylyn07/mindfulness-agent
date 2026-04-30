@@ -1,23 +1,43 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import ChatWindow from '../components/ChatWindow';
 import MorningBanner from '../components/MorningBanner';
 import HabitTracker from '../components/HabitTracker';
 import InsightsDashboard from '../components/InsightsDashboard';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000';
-const USER_ID = 'demo-user-001';
-const USER_NAME = 'Alex';
+const USER_ID = 'demo-user-001'; // demo constant — would come from auth in production
 
 type Tab = 'chat' | 'habits' | 'insights';
 
 export default function Home() {
   const [tab, setTab] = useState<Tab>('chat');
   const [bannerDismissed, setBannerDismissed] = useState(false);
+  const [userName, setUserName] = useState('');
+  // Track which tabs have been visited so secondary tabs stay mounted
+  const visitedTabs = useRef<Set<Tab>>(new Set<Tab>(['chat']));
+
+  // Fetch display name from API on load — not hardcoded
+  useEffect(() => {
+    fetch(`${API_URL}/user?userId=${USER_ID}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data?.displayName) setUserName(data.displayName);
+      })
+      .catch(() => {
+        // Non-fatal — banner still shows without a name
+      });
+  }, []);
+
+  function switchTab(t: Tab) {
+    visitedTabs.current.add(t);
+    setTab(t);
+  }
 
   async function handleMoodSelect(mood: string, score: number) {
-    setBannerDismissed(true);
+    // Dismiss after toast animation completes (MorningBanner shows toast for 800ms)
+    setTimeout(() => setBannerDismissed(true), 1200);
     try {
       await fetch(`${API_URL}/mood`, {
         method: 'POST',
@@ -48,7 +68,7 @@ export default function Home() {
               role="tab"
               aria-selected={tab === t}
               className={`tab-btn ${tab === t ? 'active' : ''}`}
-              onClick={() => setTab(t)}
+              onClick={() => switchTab(t)}
               id={`tab-${t}`}
             >
               {t === 'chat' && '💬 Chat'}
@@ -61,25 +81,32 @@ export default function Home() {
 
       {/* Body */}
       <div className="app-body">
-        {tab === 'chat' && (
-          <>
-            {!bannerDismissed && (
-              <MorningBanner
-                name={USER_NAME}
-                onMoodSelect={handleMoodSelect}
-              />
-            )}
-            <ChatWindow userId={USER_ID} />
-          </>
+
+        {/* Chat — always mounted, hidden via CSS to preserve conversation state */}
+        <div className={`tab-panel ${tab === 'chat' ? 'tab-panel-active' : ''}`}>
+          {!bannerDismissed && (
+            <MorningBanner
+              name={userName}
+              onMoodSelect={handleMoodSelect}
+            />
+          )}
+          <ChatWindow userId={USER_ID} />
+        </div>
+
+        {/* Habits — lazy mount on first visit, stays mounted after */}
+        {visitedTabs.current.has('habits') && (
+          <div className={`tab-panel ${tab === 'habits' ? 'tab-panel-active' : ''}`}>
+            <HabitTracker userId={USER_ID} />
+          </div>
         )}
 
-        {tab === 'habits' && (
-          <HabitTracker userId={USER_ID} />
+        {/* Insights — lazy mount on first visit, stays mounted after */}
+        {visitedTabs.current.has('insights') && (
+          <div className={`tab-panel ${tab === 'insights' ? 'tab-panel-active' : ''}`}>
+            <InsightsDashboard userId={USER_ID} />
+          </div>
         )}
 
-        {tab === 'insights' && (
-          <InsightsDashboard userId={USER_ID} />
-        )}
       </div>
     </main>
   );

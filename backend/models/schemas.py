@@ -118,3 +118,11 @@ class MoodLogRequest(BaseModel):
     context: str = "general"
     note: str = ""
     userId: str = "demo-user-001"
+
+
+class HabitUpdate(BaseModel):
+    name: Optional[str] = None
+    why: Optional[str] = None
+    targetTime: Optional[str] = None
+    durationMins: Optional[int] = None
+    frequency: Optional[str] = None

@@ -44,6 +44,8 @@ export default function ChatWindow({ userId }: ChatWindowProps) {
     if (!text.trim() || streaming) return;
     const userMessage = text.trim();
     setInput('');
+    // Reset textarea height
+    if (inputRef.current) inputRef.current.style.height = '24px';
 
     setMessages((prev) => [...prev, { role: 'user', content: userMessage }]);
     setMessages((prev) => [...prev, { role: 'assistant', content: '', agent: 'journal' }]);
@@ -173,9 +175,16 @@ export default function ChatWindow({ userId }: ChatWindowProps) {
           className="chat-input"
           placeholder="Share what's on your mind…"
           value={input}
-          onChange={(e) => setInput(e.target.value)}
+          onChange={(e) => {
+            setInput(e.target.value);
+            // Auto-resize
+            const el = e.target;
+            el.style.height = 'auto';
+            el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+          }}
           onKeyDown={handleKeyDown}
           rows={1}
+          style={{ height: '24px' }}
           disabled={streaming}
           id="chat-input"
         />

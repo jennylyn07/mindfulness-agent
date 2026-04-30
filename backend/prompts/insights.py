@@ -22,5 +22,11 @@ Tone rules:
 Journal context (RAG results — most relevant entries):
 {journalContext}
 
+Mood trend (last 7 days):
+{moodTrend}
+
+Habit completion this week:
+{habitStats}
+
 User context injected by Memory Agent:
 {memoryContext}"""

@@ -99,3 +99,18 @@ async def get_mood_logs(user_id: str, days: int = 7) -> list[dict]:
         enable_cross_partition_query=False,
     ))
     return items
+
+
+# ── Hour 8: Habit reads for Grove agent context ────────────
+
+async def get_habits(user_id: str) -> list[dict]:
+    """Fetch active habits for a user — used by Grove to inject live data."""
+    items = list(_container("habits").query_items(
+        query=(
+            "SELECT * FROM c WHERE c.userId = @uid AND c.active = true "
+            "ORDER BY c.name"
+        ),
+        parameters=[{"name": "@uid", "value": user_id}],
+        enable_cross_partition_query=False,
+    ))
+    return items
