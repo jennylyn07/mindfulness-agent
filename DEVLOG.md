@@ -776,3 +776,91 @@ River's chat response (`content`) is what the user saw in real time — the empa
 ---
 
 *Status: All features complete. Streak logic deterministic. Grove chat head live. Journal editable with memory sync. Demo-ready.*
+
+---
+
+---
+
+## Phase 13 — Weekly Reflection + Sufficiency Verification
+
+### Dev Log
+
+**What this session addressed**
+A third-party code review (Windsurf) raised a question about whether the system was "sufficient" for the problem statement. After verifying against the actual codebase, the review confirmed all major capabilities were implemented — but identified one real gap: `weekSummary` in `user_memory` was referenced in every specialist's system prompt but was never actually generated. The field always stayed empty because no code ever wrote to it. This session closed that gap by implementing the full `weekSummary` generation pipeline and surfacing it visibly in the UI.
+
+**What got built / fixed**
+
+| Fix | Root cause | Resolution |
+|---|---|---|
+| `weekSummary` never generated | `_WEEK_SUMMARY_TTL_DAYS` and `weekSummaryUpdatedAt` were scaffolded but never checked or written. Prompts referenced `memory.get("weekSummary", "No summary yet.")` which always returned empty string. | Added `rebuild_week_summary(user_id)` to `memory_agent.py`. Checks 7-day TTL against `weekSummaryUpdatedAt`. Fetches 10 most recent journal entries, calls GPT-4o (temp=0.4, max 200 tokens) to write a 2–3 sentence warm narrative, upserts result back to `user_memory`. |
+| `weekSummary` invisible to users | Even after generation, the summary was only injected into agent system prompts — users had no direct visibility into what the AI saw. | Updated `GET /insights` to call `rebuild_week_summary()` and return `weekSummary` in the response alongside `moodLogs`. Added "✨ Your week, reflected" card to `InsightsDashboard.tsx` — conditionally rendered only when a non-empty summary exists. |
+| Azure Functions timer trigger had broken import | Timer trigger used `from backend.agents.memory_agent import rebuild_week_summary` — `backend/` is not on the Azure Functions Python path at runtime. Would have caused `ModuleNotFoundError` on first Sunday fire. | Replaced backend import with `aiohttp` HTTP call to `GET /insights?userId=...`. FastAPI handles the logic internally. This respects the deployment boundary: Functions → API, not Functions importing API internals. Added `aiohttp==3.9.5` to `azure-functions/requirements.txt`. Runs all users concurrently in one `asyncio.run()` call. |
+| `BACKEND_URL` placeholder in Azure Portal | Set to `https://your-mindflow-backend.azurewebsites.net` (template string, not real URL). Timer trigger has an early-return guard and logs a warning when `BACKEND_URL` is unset — won't crash, but won't pre-warm. | Left as-is. Backend is running locally (free subscription quota blocks App Service deploy). Weekly card still appears on-demand: `rebuild_week_summary()` is called inline in `GET /insights` every time the Insights tab loads. Timer is a performance optimization (pre-caching), not a correctness requirement. |
+
+**Sufficiency verdict — confirmed against problem statement**
+
+All MUST items from the blueprint scope table are implemented:
+- ✅ Chat UI + mood check-in
+- ✅ Orchestrator intent routing
+- ✅ Memory Agent READ + WRITE
+- ✅ Sage (Mindfulness Coach)
+- ✅ River (Journal & Reflection) + SAVE_ENTRY
+- ✅ Grove (Habit Coach) + chat head
+- ✅ Habit tracker UI
+- ✅ Agent badges in chat
+- ✅ Sentiment detection (via SAVE_ENTRY block)
+- ✅ Lumen (Insights Agent) + RAG
+- ✅ Memory Agent weekly summary (this session)
+- ✅ Mood sparkline + trend stats
+- ✅ "What I noticed this week" card (this session)
+
+**Files changed**
+
+| File | Change |
+|---|---|
+| `backend/agents/memory_agent.py` | Added `rebuild_week_summary()` — TTL-gated, GPT-4o narrative, upserts to Cosmos |
+| `backend/api/insights.py` | Now calls `rebuild_week_summary()` and returns `weekSummary` in response |
+| `azure-functions/function_app.py` | Timer trigger rewritten: uses `aiohttp` HTTP call instead of broken backend import |
+| `azure-functions/requirements.txt` | Added `aiohttp==3.9.5` |
+| `azure-functions/local.settings.json` | Added `BACKEND_URL` key (placeholder — real URL needed for production) |
+| `frontend/components/InsightsDashboard.tsx` | Added `weekSummary` state + "✨ Your week, reflected" card (conditional render) |
+| `frontend/app/globals.css` | Added `.week-summary-card` and `.week-summary-text` styles |
+
+**Verified working**
+```
+GET /insights?userId=demo-user-001&days=14
+→ 200 OK
+→ {
+    "moodLogs": [...],
+    "days": 14,
+    "weekSummary": "This week the user maintained a 5-day meditation streak and
+    established a phone-free morning routine. Mood scores trended from 4 (Monday)
+    up to 9 (Friday), with the user noting they felt emotionally regulated during
+    a difficult manager conversation — something that would have been harder two weeks ago."
+  }
+```
+
+**Commits**
+- `feat: add weekly reflection — rebuild_week_summary, /insights exposes weekSummary, Azure Functions timer trigger, InsightsDashboard card`
+
+---
+
+### Learning Report (Plain Language)
+
+**Why was `weekSummary` scaffolded but never implemented?**
+
+This is a common pattern in fast builds: the data model is designed upfront with all the fields you intend to use, the prompts reference those fields to show intent, but the actual generation logic gets deferred. `_WEEK_SUMMARY_TTL_DAYS = 7` and `weekSummaryUpdatedAt` were both defined — the skeleton of the feature was there. The generation function was the missing piece. In a production system, this would be caught by an integration test that verifies the field is non-empty after a session. In a hackathon build, it's caught by a thorough code review.
+
+**Why does the timer trigger call HTTP instead of importing backend code?**
+
+Azure Functions and the FastAPI backend are two separate deployment units. In Azure, each unit has its own Python environment and `sys.path`. The `backend/` Python package is installed in the App Service's Python environment — it is not automatically available inside the Functions app's Python worker. Importing `from backend.agents.memory_agent import ...` inside a Function would raise `ModuleNotFoundError` the moment Azure tries to start the worker.
+
+The correct architectural boundary is: **Functions talk to the API, not to each other's internals.** The timer trigger calls `GET /insights?userId=...` — FastAPI owns that logic and the Functions app stays clean. This also means if the backend logic changes, the timer trigger picks up the change automatically without needing a redeployment.
+
+**What is the TTL pattern for expensive operations?**
+
+`rebuild_week_summary()` is an LLM call — it costs money and takes 1–2 seconds. Calling it on every page load would be wasteful. The TTL (time-to-live) pattern solves this: store the result alongside a timestamp (`weekSummaryUpdatedAt`). On the next call, check if the timestamp is older than 7 days. If yes — rebuild. If no — return the cached value immediately. This is the same pattern used in every modern caching system, from CDN edge caches to React Query's `staleTime`. The key insight is: "fresh enough" is often good enough. A week-old summary that's mostly accurate is more valuable than a perfectly fresh one that takes 2 seconds on every tab switch.
+
+---
+
+*Status: All features complete and verified. Weekly reflection live. Problem statement fully satisfied. Demo-ready.*
