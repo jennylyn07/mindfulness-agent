@@ -1175,6 +1175,20 @@ code, pre, .font-mono {
   line-height: 1.5;
 }
 
+/* ── Weekly Reflection card ─────────────────────────────── */
+.week-summary-card {
+  background: linear-gradient(135deg, var(--sky-pale) 0%, var(--lavender-pale) 100%);
+  border-left: 4px solid var(--sky);
+  animation: fadeIn 0.3s ease-out;
+}
+
+.week-summary-text {
+  font-size: 0.875rem;
+  color: var(--text-mid);
+  line-height: 1.65;
+  font-style: italic;
+}
+
 /* ── Journal View ─────────────────────────────────────────── */
 .journal-list {
   display: flex;

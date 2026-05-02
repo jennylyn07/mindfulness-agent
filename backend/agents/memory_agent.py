@@ -10,7 +10,8 @@ inside async generators on Python 3.11 (Decision 3 correction, 2026-04-28).
 """
 import json
 import asyncio
-from datetime import datetime, timezone
+import os
+from datetime import datetime, timezone, timedelta
 from typing import Optional
 
 from backend.providers import cosmos_repository as db
@@ -21,6 +22,18 @@ _FACT_THRESHOLD = 0.6        # facts below this importance are not stored
 _MAX_FACTS = 12              # cap total stored facts per user (oldest dropped)
 _DECAY_DAYS = 14             # facts not referenced for 14 days decay by 0.05
 _WEEK_SUMMARY_TTL_DAYS = 7  # rebuild weekly summary after 7 days
+
+WEEK_SUMMARY_PROMPT = """
+You are summarizing a user's week from their mindfulness journal entries.
+Write 2–3 warm, human sentences in the third person (e.g. "This week, they...").
+Focus on emotional tone, recurring themes, and any notable shifts or breakthroughs.
+Do NOT bullet-point. Do NOT use clinical language. Be specific if the entries allow it.
+If there are no entries, respond with exactly: "No journal entries this week."
+
+Journal entries (most recent first):
+{entries_block}
+
+Summary:"""
 
 
 # ── READ pass ──────────────────────────────────────────────
@@ -194,6 +207,83 @@ async def write(
     except Exception as e:
         # Write failure must never surface to the user — log only
         print(f"[MemoryAgent] WRITE failed for {user_id}: {e}")
+
+
+# ── Weekly Summary ────────────────────────────────────────
+
+async def rebuild_week_summary(user_id: str) -> str:
+    """
+    Generate (or regenerate) the weekSummary field in user_memory.
+    Checks _WEEK_SUMMARY_TTL_DAYS before rebuilding — skips if still fresh.
+    Returns the new summary string, or the existing one if still valid.
+    Safe to call from a timer trigger or on-demand.
+    """
+    try:
+        memory = await db.get_user_memory(user_id)
+        if not memory:
+            memory = _empty_memory(user_id)
+
+        now = datetime.now(timezone.utc)
+        updated_at_str = memory.get("weekSummaryUpdatedAt", "")
+
+        # Check TTL — skip rebuild if summary is still fresh
+        if updated_at_str:
+            try:
+                updated_at = datetime.fromisoformat(updated_at_str)
+                # Make aware if naive
+                if updated_at.tzinfo is None:
+                    updated_at = updated_at.replace(tzinfo=timezone.utc)
+                age_days = (now - updated_at).days
+                if age_days < _WEEK_SUMMARY_TTL_DAYS:
+                    return memory.get("weekSummary", "")
+            except ValueError:
+                pass  # bad date string — proceed to rebuild
+
+        # Fetch recent journal entries
+        entries = await db.get_recent_journal_entries(user_id, limit=10)
+
+        if not entries:
+            summary = "No journal entries this week."
+        else:
+            entries_block = "\n\n".join(
+                f"[{e.get('timestamp', '')[:10]}] {e.get('content', '')[:300]}"
+                for e in entries
+            )
+
+            from openai import AsyncAzureOpenAI
+            from urllib.parse import urlparse as _up
+
+            _raw = os.getenv("AZURE_OPENAI_ENDPOINT", "")
+            _p = _up(_raw)
+            _base_ep = f"{_p.scheme}://{_p.netloc}/"
+
+            client = AsyncAzureOpenAI(
+                api_key=os.getenv("AZURE_OPENAI_KEY", ""),
+                azure_endpoint=_base_ep,
+                api_version=os.getenv("AZURE_OPENAI_API_VERSION", "2024-02-01"),
+            )
+
+            response = await client.chat.completions.create(
+                model=os.getenv("AZURE_OPENAI_DEPLOYMENT", "gpt-4o"),
+                messages=[{
+                    "role": "user",
+                    "content": WEEK_SUMMARY_PROMPT.format(entries_block=entries_block),
+                }],
+                temperature=0.4,
+                max_tokens=200,
+            )
+            summary = (response.choices[0].message.content or "").strip()
+
+        memory["weekSummary"] = summary
+        memory["weekSummaryUpdatedAt"] = now.isoformat()
+        memory["updatedAt"] = now.isoformat()
+        await db.upsert_user_memory(memory)
+        print(f"[MemoryAgent] weekSummary rebuilt for {user_id}: {summary[:80]}...")
+        return summary
+
+    except Exception as e:
+        print(f"[MemoryAgent] rebuild_week_summary failed for {user_id}: {e}")
+        return ""
 
 
 # ── Helpers ────────────────────────────────────────────────

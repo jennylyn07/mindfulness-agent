@@ -21,6 +21,7 @@ const MOOD_EMOJI: Record<string, string> = {
 
 export default function InsightsDashboard({ userId }: InsightsDashboardProps) {
   const [moodLogs, setMoodLogs] = useState<MoodLog[]>([]);
+  const [weekSummary, setWeekSummary] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
@@ -29,7 +30,10 @@ export default function InsightsDashboard({ userId }: InsightsDashboardProps) {
     setError(false);
     fetch(`${API_URL}/insights?userId=${userId}&days=14`)
       .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
-      .then((data) => setMoodLogs(data.moodLogs ?? []))
+      .then((data) => {
+        setMoodLogs(data.moodLogs ?? []);
+        setWeekSummary(data.weekSummary ?? '');
+      })
       .catch((e) => { console.error('Failed to load insights:', e); setError(true); })
       .finally(() => setLoading(false));
   }
@@ -63,7 +67,7 @@ export default function InsightsDashboard({ userId }: InsightsDashboardProps) {
       <div className="insights-shell">
         <div className="placeholder-tab">
           <span className="placeholder-emoji">⚠️</span>
-          <p className="placeholder-title">Couldn’t load insights</p>
+          <p className="placeholder-title">Couldn't load insights</p>
           <p className="placeholder-sub">Check your connection and try again.</p>
           <button className="suggestion-chip" onClick={loadInsights} style={{ marginTop: '0.75rem' }}>Retry</button>
         </div>
@@ -76,12 +80,24 @@ export default function InsightsDashboard({ userId }: InsightsDashboardProps) {
       <div className="insights-shell">
         <div className="skeleton" style={{ height: '80px', borderRadius: '16px' }} />
         <div className="skeleton" style={{ height: '120px', borderRadius: '16px', marginTop: '0.75rem' }} />
+        <div className="skeleton" style={{ height: '96px', borderRadius: '16px', marginTop: '0.75rem' }} />
       </div>
     );
   }
 
   return (
     <div className="insights-shell">
+
+      {/* Weekly Reflection card — only shown when a summary exists */}
+      {weekSummary && weekSummary !== 'No journal entries this week.' && (
+        <div className="insights-card week-summary-card">
+          <p className="insights-section-label" style={{ marginBottom: '0.5rem' }}>
+            ✨ Your week, reflected
+          </p>
+          <p className="week-summary-text">{weekSummary}</p>
+        </div>
+      )}
+
       {/* Sparkline card */}
       <div className="insights-card">
         <MoodSparkline logs={moodLogs} />

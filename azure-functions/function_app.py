@@ -8,18 +8,95 @@ Routes:
   PATCH /api/habits/{id}/log   — mark habit done today (recalculates streak)
   POST /api/mood               — log a mood check-in
 
+Timer Triggers:
+  weekly_digest                 — every Sunday 08:00 UTC, rebuilds weekSummary
+                                  for all users who have journaled in the last 14 days
+
 Called by FastAPI backend (backend/api/habits.py, backend/api/mood.py),
 not by the frontend directly.
 """
 import json
 import os
 import uuid
+import asyncio
 from datetime import datetime, timezone, timedelta
 
 import azure.functions as func
 from azure.cosmos import CosmosClient
 
 app = func.FunctionApp(http_auth_level=func.AuthLevel.ANONYMOUS)
+
+
+# ── Weekly digest timer trigger ────────────────────────────
+@app.timer_trigger(
+    schedule="0 0 8 * * 0",   # every Sunday at 08:00 UTC (NCRONTAB)
+    arg_name="timer",
+    run_on_startup=False,
+)
+def weekly_digest(timer: func.TimerRequest) -> None:
+    """
+    Rebuild weekSummary in user_memory for all recently-active users.
+    Fires every Sunday at 08:00 UTC.
+
+    Architecture: calls the FastAPI backend's GET /insights?userId=... endpoint
+    rather than importing backend code directly. This avoids Python-path issues
+    when azure-functions and backend are deployed as separate units.
+    The /insights endpoint already calls rebuild_week_summary() internally (TTL-gated).
+
+    BACKEND_URL env var must be set to the FastAPI base URL in Application Settings,
+    e.g. https://mindflow-backend.azurewebsites.net
+    """
+    if timer.past_due:
+        print("[WeeklyDigest] Timer is past due — running anyway")
+
+    backend_url = os.environ.get("BACKEND_URL", "").rstrip("/")
+    if not backend_url:
+        print("[WeeklyDigest] BACKEND_URL not set — skipping (set it in Application Settings)")
+        return
+
+    try:
+        import urllib.request
+        import urllib.error
+
+        # Fetch all user IDs that have a memory doc from Cosmos directly
+        # (safe — azure-cosmos IS part of this deployment unit)
+        endpoint = os.environ["COSMOS_ENDPOINT"]
+        key = os.environ["COSMOS_KEY"]
+        db_name = os.environ.get("COSMOS_DB_NAME", "mindflow")
+        client = CosmosClient(endpoint, key)
+        container = client.get_database_client(db_name).get_container_client("user_memory")
+
+        users = list(container.query_items(
+            query="SELECT c.userId FROM c",
+            enable_cross_partition_query=True,
+        ))
+        user_ids = [u["userId"] for u in users if u.get("userId")]
+
+        print(f"[WeeklyDigest] Triggering weekSummary rebuild for {len(user_ids)} users via API")
+
+        async def _rebuild_all(ids: list) -> None:
+            """Hit GET /insights for each user concurrently (TTL-gated in the API)."""
+            import aiohttp
+            async with aiohttp.ClientSession() as session:
+                tasks = [
+                    session.get(f"{backend_url}/insights?userId={uid}&days=14")
+                    for uid in ids
+                ]
+                results = await asyncio.gather(*tasks, return_exceptions=True)
+                for uid, result in zip(ids, results):
+                    if isinstance(result, Exception):
+                        print(f"[WeeklyDigest] ✗ {uid}: {result}")
+                    else:
+                        async with result:
+                            status = result.status
+                            print(f"[WeeklyDigest] {'✓' if status == 200 else '✗'} {uid} → HTTP {status}")
+
+        asyncio.run(_rebuild_all(user_ids))
+        print("[WeeklyDigest] Done")
+
+    except Exception as e:
+        print(f"[WeeklyDigest] Fatal error: {e}")
+        raise
 
 
 def _get_habits_container():
