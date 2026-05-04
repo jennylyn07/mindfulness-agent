@@ -43,7 +43,6 @@ function formatDate(iso: string): { day: string; time: string; full: string } {
 
   const time = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
   const full = d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
-
   if (diffDays === 0) return { day: 'Today', time, full };
   if (diffDays === 1) return { day: 'Yesterday', time, full };
   if (diffDays < 7)   return { day: `${diffDays} days ago`, time, full };
@@ -234,7 +233,7 @@ export default function JournalView({ userId }: JournalViewProps) {
                   onClick={() => toggleExpand(entry.id)}
                   aria-expanded={isExpanded}
                 >
-                  {isExpanded ? "▲ Hide River's response" : "▼ Read River's response"}
+                  {isExpanded ? "▲ Hide saved reflection" : "▼ Read saved reflection"}
                 </button>
                 {isExpanded && (
                   <div className="journal-content">

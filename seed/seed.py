@@ -6,13 +6,13 @@ Run: python seed/seed.py
 
 Creates for DEMO_USER_ID=demo-user-001:
   - 1 user document
-  - 14 journal entries (deliberate emotional arc — Minute 4 demo depends on this)
+  - 14 journal entries (hackathon build arc — 2 weeks of Jen building MindFlow)
   - 5 habits with 7–14 days of real logs
-  - 14 mood logs matching the journal arc
+  - 14 mood logs matching the hackathon arc
   - 1 user_memory document with 5 pre-populated facts
 
 NOTE: Embeddings are NOT generated here — bulk index into AI Search happens
-in Hour 7 using the running FastAPI backend's embed endpoint.
+using bulk_index.py after the backend is running.
 """
 
 import os
@@ -56,182 +56,184 @@ def det_id(collection: str, key: str) -> str:
 
 
 # ── Seed Data ──────────────────────────────────────────────
-# Emotional arc: work stress peaks Days 13–11, Wednesday recovery pattern,
-# breakthrough at Day 4 (phone-free mornings), sustained improvement Days 3–0.
+# Emotional arc: hackathon build stress peaks Days 13–11 (project kickoff + scope panic),
+# momentum builds Days 10–7 as the system comes together, breakthrough Day 4 when
+# the full streaming pipeline works end-to-end, final QA grind Days 3–1,
+# confident and demo-ready Day 0.
 # Lumen's RAG must return something specific — generic text kills Minute 4.
 
 JOURNAL_ENTRIES = [
     {
         "id": det_id("journal", "day-13"), "userId": USER_ID,
-        "content": "Today was brutal. My manager keeps moving the goalposts on the project scope and I feel like nothing I do is ever enough. I stayed late again and I'm exhausted. I don't know how much longer I can keep this pace up.",
+        "content": "It makes sense that your mind is spinning — a big goal with a short timeline can feel like too much all at once. I hear both the excitement and the fear in what you’re holding. When you wrote that simple plan and felt steadier for a moment, what part of the plan helped you breathe again?",
         "moodAtEntry": "anxious", "sentiment": "negative",
-        "themes": ["work stress", "manager conflict", "exhaustion"],
-        "summary": "User felt overwhelmed by unclear expectations and an exhausting work pace.",
+        "themes": ["hackathon kickoff", "scope anxiety", "planning", "overwhelm"],
+        "summary": "I felt both excited and terrified reading the hackathon requirements — the scope felt huge and I wasn't sure where to start.",
         "agentUsed": "journal", "embedding": [], "timestamp": days_ago(13),
     },
     {
         "id": det_id("journal", "day-12"), "userId": USER_ID,
-        "content": "Another hard Monday. Woke up dreading the week already. The anxiety about the presentation my manager wants by Friday kept me up last night. I tried the box breathing thing this morning and it helped a little — maybe I'll try it again tonight.",
-        "moodAtEntry": "anxious", "sentiment": "negative",
-        "themes": ["work stress", "sleep issues", "breathing exercise"],
-        "summary": "User struggled with anticipatory anxiety but noted breathing exercises helped slightly.",
+        "content": "That early wall sounds discouraging — especially when you can feel panic starting to build. What stands out is that you didn’t force it; you adapted, and momentum returned. What did that “tiny win” give you emotionally — relief, confidence, or something else?",
+        "moodAtEntry": "anxious", "sentiment": "neutral",
+        "themes": ["setbacks", "adaptability", "problem solving", "first win"],
+        "summary": "I hit an early setback, but changing my plan instead of forcing it helped me move forward — and the first clean commit felt like a real win.",
         "agentUsed": "journal", "embedding": [], "timestamp": days_ago(12),
     },
     {
         "id": det_id("journal", "day-11"), "userId": USER_ID,
-        "content": "I did the presentation. My manager barely acknowledged it and then immediately pointed out what was missing. I felt invisible. On the walk home I noticed I've been holding tension in my shoulders for weeks.",
-        "moodAtEntry": "sad", "sentiment": "negative",
-        "themes": ["manager conflict", "feeling invisible", "body awareness"],
-        "summary": "User felt unseen after a presentation and became aware of physical tension from chronic stress.",
+        "content": "You built something that makes the whole experience feel personal — that’s not a small thing. I hear the pride and the clarity it brought you, even with the deadline humming in the background. If the deadline had a voice right now, what would it be saying — and what would you want to say back?",
+        "moodAtEntry": "okay", "sentiment": "neutral",
+        "themes": ["personalization", "momentum", "time pressure", "building"],
+        "summary": "I built the part that makes the assistant feel personal, which gave me momentum — but the deadline still feels loud.",
         "agentUsed": "journal", "embedding": [], "timestamp": days_ago(11),
     },
     {
         "id": det_id("journal", "day-10"), "userId": USER_ID,
-        "content": "Wednesday is always better for some reason. Had a good conversation with a colleague about the manager situation — apparently others feel the same way. Did my morning meditation today, first time in a week.",
-        "moodAtEntry": "okay", "sentiment": "neutral",
-        "themes": ["work stress", "connection", "morning meditation"],
-        "summary": "User found relief through peer connection and returned to morning meditation practice.",
+        "content": "It sounds like today was a turning point — like the project shifted from “idea” to “something alive.” I hear how meaningful it was to feel supported in a moment of anxiety, and then guided into reflection instead of being left alone with it. What do you want to protect about this feeling as the pressure ramps up again?",
+        "moodAtEntry": "good", "sentiment": "positive",
+        "themes": ["momentum", "mindfulness", "reflection", "product feel"],
+        "summary": "The app felt real for the first time today — it helped me calm down and reflect in a way that felt genuinely useful.",
         "agentUsed": "journal", "embedding": [], "timestamp": days_ago(10),
     },
     {
         "id": det_id("journal", "day-9"), "userId": USER_ID,
-        "content": "Thursday felt lighter. I've noticed I'm almost always more anxious on Mondays and Tuesdays — by Wednesday something shifts. The meditation this morning was really grounding. Maybe there's something to this consistency thing.",
+        "content": "That “almost rage-quit” moment sounds real — like you were right at the edge of your patience. And then that deep-exhale relief when it finally clicked… that’s your nervous system coming back online. When you think about what helped you push through, was it stubbornness, hope, or something else?",
         "moodAtEntry": "good", "sentiment": "positive",
-        "themes": ["mood patterns", "morning meditation", "consistency"],
-        "summary": "User noticed a recurring mood pattern — higher anxiety early week, recovery mid-week — linked to meditation consistency.",
+        "themes": ["habits", "frustration", "debugging", "relief"],
+        "summary": "Habits are working — a frustrating progress bug almost broke me, but fixing it brought real relief and restored my confidence.",
         "agentUsed": "journal", "embedding": [], "timestamp": days_ago(9),
     },
     {
         "id": det_id("journal", "day-8"), "userId": USER_ID,
-        "content": "Long week but I made it. Manager situation is the same but I feel less reactive to it today. The ones where I don't look at my phone first thing are noticeably calmer. Need to test this properly.",
-        "moodAtEntry": "good", "sentiment": "positive",
-        "themes": ["manager conflict", "morning routine", "phone habits"],
-        "summary": "User identified that phone-free mornings may correlate with a calmer emotional baseline.",
+        "content": "I hear how draining those “small failures” can be — especially when they stack up and start to make you question the whole effort. And I also hear the moment it turned: when something you’d written before was held gently and connected to the present. What did that moment make you feel — seen, understood, relieved?",
+        "moodAtEntry": "okay", "sentiment": "positive",
+        "themes": ["insights", "patterns", "persistence", "breakthrough moment"],
+        "summary": "After a long day of small failures, the assistant finally connected a current feeling to something I'd written before — and it felt like a companion, not just a tool.",
         "agentUsed": "journal", "embedding": [], "timestamp": days_ago(8),
     },
     {
         "id": det_id("journal", "day-7"), "userId": USER_ID,
-        "content": "Weekend was restorative. Went for a walk without headphones and just let my mind wander. It felt strange at first but I noticed I wasn't thinking about work at all after about ten minutes.",
-        "moodAtEntry": "good", "sentiment": "positive",
-        "themes": ["rest", "nature", "mental space"],
-        "summary": "User experienced mental relief through undistracted walking.",
+        "content": "This sounds like one of those quiet-but-important days — the kind that doesn’t look impressive from the outside, but changes how safe the experience feels. I hear your care for future-you and for the person who will rely on what you built. As you notice that steadier feeling, where do you feel it — in your chest, your shoulders, your breath?",
+        "moodAtEntry": "okay", "sentiment": "neutral",
+        "themes": ["reliability", "maintenance", "patience", "steady progress"],
+        "summary": "I did the unglamorous reliability work today — nothing flashy, but it made everything feel steadier.",
         "agentUsed": "journal", "embedding": [], "timestamp": days_ago(7),
     },
     {
         "id": det_id("journal", "day-6"), "userId": USER_ID,
-        "content": "Monday again. Smaller anxiety spike than usual — noticed it and did the box breathing before the stand-up meeting. It helped me stay calm when my manager criticized the timeline in front of the team.",
-        "moodAtEntry": "anxious", "sentiment": "neutral",
-        "themes": ["work stress", "breathing exercise", "manager conflict"],
-        "summary": "User proactively used breathing technique before a stressful meeting with measurable effect.",
+        "content": "There’s a grounded kind of confidence that comes from moving slowly and checking the basics — not rushing past them. I hear how your calm grew as the surprises disappeared, and how that turned into trust. What does it feel like to trust what you built, even just a little more than yesterday?",
+        "moodAtEntry": "good", "sentiment": "positive",
+        "themes": ["quality", "trust", "stability", "small fixes"],
+        "summary": "I spent the day testing like a real user would, and it made me trust the app more.",
         "agentUsed": "journal", "embedding": [], "timestamp": days_ago(6),
     },
     {
         "id": det_id("journal", "day-5"), "userId": USER_ID,
-        "content": "Something clicked today. I realized I've been trying to get my manager to validate my work — and that's not something I can control. The only thing I can control is how I show up. That feels like a real shift.",
-        "moodAtEntry": "okay", "sentiment": "positive",
-        "themes": ["work stress", "control", "self-awareness", "boundary"],
-        "summary": "User had a significant mindset shift: recognizing external validation cannot be controlled.",
+        "content": "It sounds like you’re creating a space that feels inviting — not clinical, not performative, just human. I hear how much “gentle” matters to you: the journal as a story, and saving an entry as something that flows naturally. When you imagine coming back to this space on a hard day, what would you hope it gives you?",
+        "moodAtEntry": "good", "sentiment": "positive",
+        "themes": ["journaling", "clarity", "gentle UX", "progress"],
+        "summary": "The journal now feels like a place I'd return to, and saving an entry feels gentler and more natural.",
         "agentUsed": "journal", "embedding": [], "timestamp": days_ago(5),
     },
     {
         "id": det_id("journal", "day-4"), "userId": USER_ID,
-        "content": "BREAKTHROUGH DAY. I've been keeping my phone off until 9am this week and the mornings feel completely different. Less reactive, more present. This is the thing. I'm going to make this a proper habit.",
+        "content": "I can feel your delight here — that moment where it stops being “a feature” and starts feeling like support. What stands out is the care: a nudge that matches your real day, not a generic push. As you sit with that pride, what do you think you proved to yourself by getting this working?",
         "moodAtEntry": "great", "sentiment": "positive",
-        "themes": ["phone habits", "morning routine", "breakthrough", "habit formation"],
-        "summary": "User experienced a clear breakthrough: phone-free mornings until 9am produce a noticeably calmer and more present emotional state.",
+        "themes": ["habit coaching", "support", "delight", "breakthrough"],
+        "summary": "The habit coach now feels present and supportive — it nudges me in a way that matches my real day, and I'm proud of how it feels.",
         "agentUsed": "journal", "embedding": [], "timestamp": days_ago(4),
     },
     {
         "id": det_id("journal", "day-3"), "userId": USER_ID,
-        "content": "Five days of morning meditation in a row. I can see the streak and it actually motivates me — but not in a guilty way, more like genuine pride. The journal entries this week have all been calmer in tone.",
+        "content": "You’re naming something really important: being recorded isn’t the same as being understood. I hear how much it mattered to read a reflection that felt like “I see you,” especially after a hard stretch. When you picture someone reading that weekly reflection, what do you hope it changes for them in that moment?",
         "moodAtEntry": "great", "sentiment": "positive",
-        "themes": ["morning meditation", "streak", "self-compassion", "mood improvement"],
-        "summary": "User maintained a 5-day meditation streak with intrinsic motivation, noticing a shift in emotional tone.",
+        "themes": ["reflection", "meaning", "weekly summary", "care"],
+        "summary": "I added a weekly reflection that turns the past week into a gentle story — it made the app feel more human.",
         "agentUsed": "journal", "embedding": [], "timestamp": days_ago(3),
     },
     {
         "id": det_id("journal", "day-2"), "userId": USER_ID,
-        "content": "Had a difficult conversation with my manager today. But unlike two weeks ago, I stayed regulated. I said what I needed to say clearly. I was actually surprised at myself. The breathing practice is doing something.",
-        "moodAtEntry": "okay", "sentiment": "positive",
-        "themes": ["manager conflict", "self-regulation", "breathing exercise", "progress"],
-        "summary": "User demonstrated concrete progress in emotional regulation during a previously triggering situation.",
+        "content": "This sounds like care work — the kind that’s easy to overlook, but changes how it feels to step into the experience. I hear the relief of “closing open tabs,” of making things clearer and kinder for whoever comes next (including you). What feels most finished inside you right now — and what still feels slightly undone?",
+        "moodAtEntry": "good", "sentiment": "positive",
+        "themes": ["closing loops", "clarity", "prep", "care"],
+        "summary": "I spent the day closing loops and making the experience clearer — it felt like mental decluttering.",
         "agentUsed": "journal", "embedding": [], "timestamp": days_ago(2),
     },
     {
         "id": det_id("journal", "day-1"), "userId": USER_ID,
-        "content": "Sunday evenings used to make me dread the week ahead. Tonight I noticed the old anxiety trying to creep in but it didn't take hold. I think I'm building something real here.",
+        "content": "I hear a mix of nerves and steadiness — like you’re rehearsing, but you’re also appreciating what you made. What stands out is your intention: meeting anxiety with calm instead of hype, and reflecting patterns with care. As you go into tomorrow, what would “enough” look like for you, regardless of the outcome?",
         "moodAtEntry": "good", "sentiment": "positive",
-        "themes": ["sunday anxiety", "mood patterns", "resilience", "growth"],
-        "summary": "User noticed reduced Sunday evening anxiety — a previously consistent trigger — and attributed it to sustained practice.",
+        "themes": ["demo prep", "readiness", "pride", "nerves"],
+        "summary": "Demo prep complete — walked through the script twice and felt genuinely proud of what was built, regardless of the result.",
         "agentUsed": "journal", "embedding": [], "timestamp": days_ago(1),
     },
     {
         "id": det_id("journal", "day-0"), "userId": USER_ID,
-        "content": "Starting this week with meditation already done. Feels different to begin the day having already done something for myself. The phone-off-until-9 rule is holding. I feel ready.",
+        "content": "It sounds like you’re standing right at the edge of something you worked hard for — nervous, and also ready. I hear the values you want the experience to carry: supportive, not judgmental; gentle, not pressuring. Before you step into the demo, what would help you feel one notch more grounded right now?",
         "moodAtEntry": "great", "sentiment": "positive",
-        "themes": ["morning routine", "self-care", "readiness", "consistency"],
-        "summary": "User began the week with established morning routine, reporting a sense of readiness and calm.",
+        "themes": ["demo day", "launch", "pride", "hackathon completion"],
+        "summary": "Demo day — the system is live, the script is ready, and I'm proud of every line of code.",
         "agentUsed": "journal", "embedding": [], "timestamp": days_ago(0),
     },
 ]
 
 MOOD_LOGS = [
-    {"id": det_id("mood", "day-13"), "userId": USER_ID, "mood": "anxious", "score": 2, "context": "evening_checkin",  "note": "Rough day at work",                   "timestamp": days_ago(13)},
-    {"id": det_id("mood", "day-12"), "userId": USER_ID, "mood": "anxious", "score": 3, "context": "morning_checkin", "note": "Dreading the week",                   "timestamp": days_ago(12)},
-    {"id": det_id("mood", "day-11"), "userId": USER_ID, "mood": "sad",     "score": 3, "context": "evening_checkin",  "note": "Presentation went badly",             "timestamp": days_ago(11)},
-    {"id": det_id("mood", "day-10"), "userId": USER_ID, "mood": "okay",    "score": 5, "context": "morning_checkin", "note": "Wednesday — usually better",           "timestamp": days_ago(10)},
-    {"id": det_id("mood", "day-9"),  "userId": USER_ID, "mood": "good",    "score": 7, "context": "morning_checkin", "note": "Meditation helped",                    "timestamp": days_ago(9)},
-    {"id": det_id("mood", "day-8"),  "userId": USER_ID, "mood": "good",    "score": 6, "context": "evening_checkin",  "note": "Less reactive today",                 "timestamp": days_ago(8)},
-    {"id": det_id("mood", "day-7"),  "userId": USER_ID, "mood": "good",    "score": 7, "context": "morning_checkin", "note": "Weekend restoration",                  "timestamp": days_ago(7)},
-    {"id": det_id("mood", "day-6"),  "userId": USER_ID, "mood": "anxious", "score": 4, "context": "morning_checkin", "note": "Monday but managed it",                "timestamp": days_ago(6)},
-    {"id": det_id("mood", "day-5"),  "userId": USER_ID, "mood": "okay",    "score": 6, "context": "evening_checkin",  "note": "Big mindset shift today",             "timestamp": days_ago(5)},
-    {"id": det_id("mood", "day-4"),  "userId": USER_ID, "mood": "great",   "score": 8, "context": "morning_checkin", "note": "Phone off until 9 — different feeling","timestamp": days_ago(4)},
-    {"id": det_id("mood", "day-3"),  "userId": USER_ID, "mood": "great",   "score": 9, "context": "morning_checkin", "note": "5 day streak — proud",                 "timestamp": days_ago(3)},
-    {"id": det_id("mood", "day-2"),  "userId": USER_ID, "mood": "okay",    "score": 7, "context": "evening_checkin",  "note": "Stayed regulated in hard convo",      "timestamp": days_ago(2)},
-    {"id": det_id("mood", "day-1"),  "userId": USER_ID, "mood": "good",    "score": 8, "context": "evening_checkin",  "note": "Sunday anxiety smaller than usual",   "timestamp": days_ago(1)},
-    {"id": det_id("mood", "day-0"),  "userId": USER_ID, "mood": "great",   "score": 9, "context": "morning_checkin", "note": "Ready for the week",                   "timestamp": days_ago(0)},
+    {"id": det_id("mood", "day-13"), "userId": USER_ID, "mood": "anxious", "score": 3, "context": "evening_checkin",  "note": "The scope felt huge and my mind kept racing",              "timestamp": days_ago(13)},
+    {"id": det_id("mood", "day-12"), "userId": USER_ID, "mood": "anxious", "score": 4, "context": "morning_checkin", "note": "Early setback, but I chose to adapt",                       "timestamp": days_ago(12)},
+    {"id": det_id("mood", "day-11"), "userId": USER_ID, "mood": "okay",    "score": 5, "context": "evening_checkin",  "note": "Momentum is back, but the deadline is loud",              "timestamp": days_ago(11)},
+    {"id": det_id("mood", "day-10"), "userId": USER_ID, "mood": "good",    "score": 7, "context": "morning_checkin", "note": "The app helped me breathe and reflect — it felt real",     "timestamp": days_ago(10)},
+    {"id": det_id("mood", "day-9"),  "userId": USER_ID, "mood": "good",    "score": 7, "context": "evening_checkin",  "note": "Fixed a frustrating habits issue — big relief",           "timestamp": days_ago(9)},
+    {"id": det_id("mood", "day-8"),  "userId": USER_ID, "mood": "okay",    "score": 6, "context": "morning_checkin", "note": "A long day, but a meaningful breakthrough",               "timestamp": days_ago(8)},
+    {"id": det_id("mood", "day-7"),  "userId": USER_ID, "mood": "okay",    "score": 5, "context": "evening_checkin",  "note": "Unsexy reliability work — tired but steadier",             "timestamp": days_ago(7)},
+    {"id": det_id("mood", "day-6"),  "userId": USER_ID, "mood": "good",    "score": 8, "context": "morning_checkin", "note": "Testing made me trust what I built",                        "timestamp": days_ago(6)},
+    {"id": det_id("mood", "day-5"),  "userId": USER_ID, "mood": "good",    "score": 7, "context": "evening_checkin",  "note": "The journal space feels calmer and clearer",               "timestamp": days_ago(5)},
+    {"id": det_id("mood", "day-4"),  "userId": USER_ID, "mood": "great",   "score": 9, "context": "morning_checkin", "note": "A delightful coaching moment finally landed",              "timestamp": days_ago(4)},
+    {"id": det_id("mood", "day-3"),  "userId": USER_ID, "mood": "great",   "score": 9, "context": "morning_checkin", "note": "Weekly reflection made the app feel human",                "timestamp": days_ago(3)},
+    {"id": det_id("mood", "day-2"),  "userId": USER_ID, "mood": "good",    "score": 8, "context": "evening_checkin",  "note": "Closing loops and making the experience clearer",          "timestamp": days_ago(2)},
+    {"id": det_id("mood", "day-1"),  "userId": USER_ID, "mood": "good",    "score": 8, "context": "evening_checkin",  "note": "Nervous, but proud — rehearsal helped",                    "timestamp": days_ago(1)},
+    {"id": det_id("mood", "day-0"),  "userId": USER_ID, "mood": "great",   "score": 9, "context": "morning_checkin", "note": "Demo day — nervous and ready",                              "timestamp": days_ago(0)},
 ]
 
 HABITS = [
     {
-        "id": det_id("habit", "morning-meditation"), "userId": USER_ID,
-        "name": "Morning meditation",
-        "why": "To feel grounded and less reactive before the workday starts",
-        "frequency": "daily", "targetTime": "07:30", "durationMins": 10,
-        "logs": [date_str_days_ago(d) for d in [0,1,2,3,4,6,7,8,9,10]],
-        "currentStreak": 5, "longestStreak": 10, "active": True,
+        "id": det_id("habit", "daily-build-session"), "userId": USER_ID,
+        "name": "Daily build session",
+        "why": "Consistent daily progress compounds — even 2 hours beats one 14-hour sprint",
+        "frequency": "daily", "targetTime": "09:00", "durationMins": 120,
+        "logs": [date_str_days_ago(d) for d in [0,1,2,3,4,5,6,7,8,9,10,11,12,13]],
+        "currentStreak": 14, "longestStreak": 14, "active": True,
     },
     {
         "id": det_id("habit", "evening-journal"), "userId": USER_ID,
         "name": "Evening journal",
-        "why": "To process my day and stop carrying unresolved thoughts to bed",
+        "why": "Journaling what I built (and what blocked me) clears my head and helps me problem-solve overnight",
         "frequency": "daily", "targetTime": "21:00", "durationMins": 15,
-        "logs": [date_str_days_ago(d) for d in [0,1,2,3,4,5,6,7]],
-        "currentStreak": 8, "longestStreak": 8, "active": True,
+        "logs": [date_str_days_ago(d) for d in [0,1,2,3,4,5,6,7,8,9]],
+        "currentStreak": 10, "longestStreak": 10, "active": True,
     },
     {
-        "id": det_id("habit", "phone-off-9am"), "userId": USER_ID,
-        "name": "Phone off until 9am",
-        "why": "Mornings without my phone feel completely different — calmer and more present",
+        "id": det_id("habit", "morning-meditation"), "userId": USER_ID,
+        "name": "Morning meditation",
+        "why": "Starting with 10 minutes of quiet means I make better technical decisions all day",
+        "frequency": "daily", "targetTime": "07:30", "durationMins": 10,
+        "logs": [date_str_days_ago(d) for d in [0,1,2,3,4,6,7,8]],
+        "currentStreak": 5, "longestStreak": 8, "active": True,
+    },
+    {
+        "id": det_id("habit", "no-doom-scroll-before-code"), "userId": USER_ID,
+        "name": "No phone before first commit",
+        "why": "Opening social media before coding fragments my focus before I even start",
         "frequency": "daily", "targetTime": "09:00", "durationMins": 0,
-        "logs": [date_str_days_ago(d) for d in [0,1,2,3,4]],
-        "currentStreak": 5, "longestStreak": 5, "active": True,
+        "logs": [date_str_days_ago(d) for d in [0,1,2,3,4,5]],
+        "currentStreak": 6, "longestStreak": 6, "active": True,
     },
     {
-        "id": det_id("habit", "30-min-walk"), "userId": USER_ID,
-        "name": "30 minute walk",
-        "why": "To get out of my head and into my body",
-        "frequency": "daily", "targetTime": "17:00", "durationMins": 30,
-        "logs": [date_str_days_ago(d) for d in [0,2,4,6,8,10,12]],
+        "id": det_id("habit", "afternoon-walk"), "userId": USER_ID,
+        "name": "Afternoon walk (no headphones)",
+        "why": "When I'm stuck on a bug, a 20-minute walk without input almost always surfaces the answer",
+        "frequency": "daily", "targetTime": "15:00", "durationMins": 20,
+        "logs": [date_str_days_ago(d) for d in [0,2,4,6,8,10]],
         "currentStreak": 1, "longestStreak": 3, "active": True,
-    },
-    {
-        "id": det_id("habit", "no-screens-9pm"), "userId": USER_ID,
-        "name": "No screens after 9pm",
-        "why": "Better sleep means better everything the next day",
-        "frequency": "daily", "targetTime": "21:00", "durationMins": 0,
-        "logs": [date_str_days_ago(d) for d in [1,3,5,7]],
-        "currentStreak": 0, "longestStreak": 4, "active": True,
     },
 ]
 
@@ -239,49 +241,49 @@ USER_MEMORY = {
     "id": USER_ID, "userId": USER_ID,
     "facts": [
         {
-            "content": "User experiences significant work stress connected to a difficult relationship with their manager, specifically around unclear expectations and lack of recognition.",
-            "source": "journal_entry", "importance": 0.95,
-            "createdAt": days_ago(13), "lastReferencedAt": days_ago(2),
+            "content": "Jen is building MindFlow for a hackathon — one place to check in, journal, practice mindfulness, and keep gentle track of habits.",
+            "source": "journal_entry", "importance": 0.98,
+            "createdAt": days_ago(13), "lastReferencedAt": days_ago(0),
         },
         {
-            "content": "User discovered that mornings without phone use until 9am produce a noticeably calmer and more present emotional baseline — identified as a personal breakthrough.",
+            "content": "Jen's biggest boost comes when the app feels genuinely supportive — especially when it offers a small, timely nudge that matches her real day.",
             "source": "journal_entry", "importance": 0.92,
-            "createdAt": days_ago(4), "lastReferencedAt": days_ago(0),
+            "createdAt": days_ago(10), "lastReferencedAt": days_ago(4),
         },
         {
-            "content": "User consistently experiences higher anxiety on Mondays and Tuesdays, with natural emotional recovery occurring by Wednesday — a recurring weekly mood pattern.",
-            "source": "mood_log", "importance": 0.88,
-            "createdAt": days_ago(9), "lastReferencedAt": days_ago(6),
+            "content": "Jen responds well to reframing setbacks as progress — naming small wins helps her keep going when pressure is high.",
+            "source": "journal_entry", "importance": 0.88,
+            "createdAt": days_ago(7), "lastReferencedAt": days_ago(3),
         },
         {
-            "content": "User responds well to breathing exercises, particularly box breathing, when used proactively before stressful situations rather than reactively after.",
-            "source": "journal_entry", "importance": 0.85,
-            "createdAt": days_ago(6), "lastReferencedAt": days_ago(2),
+            "content": "User experiences a consistent mood dip when blocked on an invisible bug, but recovers quickly once the root cause is understood — the pattern is frustration → investigation → clarity → relief.",
+            "source": "mood_log", "importance": 0.85,
+            "createdAt": days_ago(8), "lastReferencedAt": days_ago(5),
         },
         {
-            "content": "User has shown measurable progress in emotional regulation — able to have difficult conversations with their manager without escalating, attributed to breathing practice.",
-            "source": "journal_entry", "importance": 0.80,
-            "createdAt": days_ago(2), "lastReferencedAt": days_ago(0),
+            "content": "Afternoon walks without headphones reliably reset Jen's nervous system and help her find clarity when she's stuck.",
+            "source": "journal_entry", "importance": 0.82,
+            "createdAt": days_ago(7), "lastReferencedAt": days_ago(1),
         },
     ],
     "weekSummary": (
-        "This week the user maintained a 5-day meditation streak and established a phone-free morning routine. "
-        "Mood scores trended from 4 (Monday) up to 9 (Friday), with the user noting they felt emotionally regulated "
-        "during a difficult manager conversation on Wednesday — something that would have been harder two weeks ago."
+        "This week Jen moved from overwhelm into steadier momentum. "
+        "She kept showing up for her habits, built a calmer place to reflect, and added a weekly reflection that made the experience feel more human. "
+        "Even with nerves in the final stretch, she ends the week proud — and ready for demo day."
     ),
     "weekSummaryUpdatedAt": days_ago(0),
     "learnedPreferences": {
         "preferredTone": "warm",
         "bestJournalingTime": "evening",
-        "respondsWellTo": ["breathing exercises", "open questions", "streak acknowledgment"],
-        "avoids": ["direct advice", "long bullet lists", "guilt framing"],
+        "respondsWellTo": ["reframing setbacks as growth", "acknowledging streaks", "gentle, specific reflections"],
+        "avoids": ["generic encouragement", "long bullet lists", "pressure or guilt"],
     },
-    "recurringThemes": ["work stress", "manager conflict", "morning routine", "breathing exercises", "mood patterns"],
+    "recurringThemes": ["building under pressure", "mindfulness", "reflection", "habits", "momentum and flow"],
     "breakthroughs": [
-        "Mornings without phone use until 9am produce a noticeably calmer emotional baseline",
-        "Monday and Tuesday consistently bring higher anxiety — awareness of this pattern reduces its impact",
-        "External validation from manager cannot be controlled — only personal effort can",
-        "Sunday evening anxiety is decreasing as weekly resilience builds",
+        "The first time the app helped her calm down in a high-pressure moment",
+        "Seeing a reflection connect a present feeling to something she'd written earlier",
+        "A small, timely habit-coach nudge that felt personal instead of generic",
+        "Learning that a walk without headphones beats forcing focus when stuck",
     ],
     "updatedAt": days_ago(0),
 }
@@ -334,8 +336,7 @@ def seed():
     print(f"  ✓ User memory upserted ({len(USER_MEMORY['facts'])} facts)")
 
     print("\n✅ Seed complete. Demo account is ready.")
-    print("\n⚠️  NEXT: Bulk-index journal entries into Azure AI Search in Hour 7.")
-    print("   Embeddings are generated by the FastAPI backend at that point.")
+    print("\n⚠️  NEXT: Run python seed/bulk_index.py to embed and index journal entries into Azure AI Search.")
 
 
 if __name__ == "__main__":

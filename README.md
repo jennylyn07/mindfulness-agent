@@ -140,6 +140,9 @@ User message
   → memory_agent.write()             [background, non-blocking]
 ```
 
+See [`docs/agents.md`](docs/agents.md) for full agent reference: trigger keywords, system prompt philosophy, SAVE_ENTRY parsing, and the Grove chat head design.  
+See [`docs/architecture.md`](docs/architecture.md) for the full 6-layer architecture diagram, adapter pattern, streaming pipeline, and known quirks.
+
 ### Key Behaviours
 - **Memory injection**: Every specialist receives `{memoryContext}` — top-5 facts, recurring themes, breakthroughs, weekly summary, preferred tone — assembled from Cosmos before each response.
 - **SAVE_ENTRY parsing**: River appends a structured `[SAVE_ENTRY]...[/SAVE_ENTRY]` block to every response. The stream parser intercepts and saves this to Cosmos and AI Search without the user seeing it.

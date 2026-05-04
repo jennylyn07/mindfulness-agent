@@ -1,10 +1,41 @@
 # MindFlow Demo Script
 ## Hackathon Presentation — 5-Minute Walkthrough
 
+## Apply the demo data (new seed)
+
+Use this when you want to refresh the demo account and make sure the Insights tab has a weekly reflection.
+
+⚠️ To apply: Run python seed/cleanup.py first to purge old data, then python seed/seed.py, then python seed/bulk_index.py.
+
+1. **(Optional) Clear old demo data**
+   Run:
+   - `python seed/cleanup.py`
+
+2. **Seed the new story + habits + moods**
+   Run:
+   - `python seed/seed.py`
+
+3. **Start the backend**
+   Run (from repo root):
+   - `python -m uvicorn backend.main:app --reload --port 8000`
+
+4. **Index journal entries for Insights (Lumen)**
+   Run (in a new terminal, after the backend is running):
+   - `python seed/bulk_index.py`
+
+5. **Start the frontend**
+   Run (in `frontend/`):
+   - `npm run dev`
+
+6. **Refresh the app**
+   - Open `http://localhost:3000`
+   - Go to the **Insights** tab and refresh once
+
 > **Setup checklist before presenting:**
 > - [ ] `backend/.env` all values set
 > - [ ] `seed/seed.py` ran successfully (14 journal entries, 5 habits, 14 mood logs)
-> - [ ] FastAPI running: `python -m backend.main` (port 8000)
+> - [ ] `seed/bulk_index.py` ran successfully (AI Search indexed)
+> - [ ] FastAPI running: `python -m uvicorn backend.main:app --reload --port 8000` (from repo root)
 > - [ ] Next.js running: `npm run dev` in `frontend/` (port 3000)
 > - [ ] Browser open to `http://localhost:3000`
 > - [ ] Browser DevTools closed
@@ -27,11 +58,11 @@
 
 **Action:** Tap the **😐 okay** emoji in the morning banner.
 
-> *"That mood score just traveled from this button → FastAPI → Azure Functions → Cosmos DB. And it's already shaping how the AI will talk to me today."*
+> *"That one tap sets the tone for the rest of the experience. MindFlow doesn't treat this like a form — it treats it like a moment of honesty."*
 
 **Action:** Switch to the Insights tab — point to the Weekly Reflection card at the top, then the sparkline.
 
-> *"At the top — a weekly reflection. The Memory Agent read my last 10 journal entries and wrote this 2–3 sentence narrative. It's not generic — it references the specific breakthrough I had about phone-free mornings. Below that: 14 days of emotional data, visualized. Average score, dominant mood, and a week-over-week trend — am I improving?"*
+> *"At the top — a weekly reflection. It turns the past few days into a short, gentle story — not charts for the sake of charts. Below that is a simple mood timeline, so you can see the arc of your week at a glance."*
 
 ---
 
@@ -43,12 +74,12 @@ I've been feeling really anxious about a big presentation tomorrow
 ```
 
 **What to narrate while streaming:**
-> *"Watch the badge — that's the Orchestrator. In under 300ms it classified this as a mindfulness request and handed it to Sage, our mindfulness coach. And notice — I didn't tell it to do that. The system routed it automatically."*
+> *"Notice the badge — MindFlow automatically routes this to Sage, our mindfulness coach."*
 
-> *"Sage knows I've been anxious before. That's the Memory Agent — it reads my conversation history and injects it into Sage's instructions before the response starts. So Sage isn't starting from zero."*
+> *"Sage doesn't jump into advice. It meets the emotion first, then guides a short practice you can actually do in under a minute."*
 
 **Wait for response, then:**
-> *"This is a real grounding exercise, calibrated to high urgency. Not a generic tip — a specific intervention for anxiety before a high-stakes event."*
+> *"This is a real grounding exercise — not a motivational quote. The goal is to help you come back to your body and feel a little steadier."*
 
 ---
 
@@ -56,14 +87,14 @@ I've been feeling really anxious about a big presentation tomorrow
 
 **Action:** In Chat tab, type:
 ```
-I want to journal about how I'm feeling. I've been stressed about work lately and I notice I'm snapping at people I care about.
+I want to journal about how I'm feeling right now. I've been heads-down building for two weeks and I'm starting to feel the final-stretch pressure.
 ```
 
 **What to narrate while streaming:**
 > *"The Orchestrator now classifies this as journaling — badge switches to River. River is a reflective companion, not an advice-giver."*
 
 **Wait for response, then:**
-> *"River just did something invisible. At the end of its response, it appended a structured data block — mood, sentiment, themes, summary. The streaming parser intercepted that block, stripped it from what you see, and saved a structured journal entry to Cosmos DB. In the background. Without any lag."*
+> *"River helps you slow down and find the words. And when you choose to save an entry, MindFlow quietly captures the mood and themes so you can reflect on patterns later — without making you fill out extra fields."*
 
 **Action:** Switch to Insights tab.
 > *"That entry will show up the next time Lumen searches our journal history."*
@@ -78,26 +109,26 @@ What patterns do you see across my journal entries?
 ```
 
 **What to narrate while streaming:**
-> *"Lumen is different from the other agents. Before it even starts responding, it runs a hybrid semantic search over all my journal entries in Azure AI Search — finding the most relevant ones for this question. That's RAG — Retrieval-Augmented Generation. Lumen literally re-reads my history before speaking."*
+> *"Lumen is the insights companion. Before answering, it looks back at what you've actually written recently — so it can respond with context instead of guesses."*
 
 **Wait for response, then:**
-> *"This is what makes it feel like the system actually knows me. It does — because it just looked it up."*
+> *"Notice what Lumen does here — it stays specific. It reflects back themes that show up across multiple entries, and it asks a gentle question that helps you decide what you need next."*
 
 ---
 
 ## Minute 5 — Habit Tracking with Grove (30 seconds)
 
-**Action:** Switch to Habits tab.
-> *"Five habits, each with a reason behind it — the WHY. Grove coached me to define that when I created each one. That WHY is stored in memory."*
+**Action:** Switch to Habits tab. Point to the 14-day daily build streak.
+> *"Five habits, each with a WHY. The daily build session has a 14-day streak — that's consistency. And the afternoon walk has the lowest streak — that's also real life. Grove doesn't guilt you — it helps you reset gently."*
 
 **Action:** Tap a habit check button to log it.
-> *"Streak updated, logged to Cosmos via Azure Functions. And if I'd missed yesterday? Grove wouldn't guilt me — it would ask: 'What would a 5-minute version look like?'"*
+> *"When you miss a day, Grove doesn't punish you. It helps you make it smaller: 'What would a 5-minute version look like?'"*
 
 ---
 
 ## Closing (15 seconds)
 
-> *"Four agents. One conversation. Your history remembered across every session. MindFlow — supportive, not judgmental. Personalized, not generic. Built on Azure AI Foundry, Semantic Kernel, Cosmos DB, AI Search, and Azure Functions."*
+> *"Four agents. One experience. MindFlow helps you check in, calm down, reflect, and keep showing up — in a way that feels supportive, not judgmental."*
 
 ---
 

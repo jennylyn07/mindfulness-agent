@@ -7,6 +7,7 @@ needed by the Memory Agent. Additional methods added per phase:
   Hour 7: get_mood_logs()
 """
 import os
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 from azure.cosmos import CosmosClient, PartitionKey
 from azure.cosmos.exceptions import CosmosResourceNotFoundError
@@ -83,6 +84,30 @@ async def get_recent_journal_entries(user_id: str, limit: int = 10) -> list[dict
     return items
 
 
+async def get_journal_entries_in_range(
+    user_id: str,
+    start_dt: datetime,
+    end_dt: datetime,
+) -> list[dict]:
+    """Fetch journal entries where start_dt <= timestamp < end_dt (UTC ISO timestamps)."""
+    start_iso = start_dt.isoformat()
+    end_iso = end_dt.isoformat()
+    items = list(_container("journal_entries").query_items(
+        query=(
+            "SELECT * FROM c WHERE c.userId = @uid "
+            "AND c.timestamp >= @start AND c.timestamp < @end "
+            "ORDER BY c.timestamp DESC"
+        ),
+        parameters=[
+            {"name": "@uid", "value": user_id},
+            {"name": "@start", "value": start_iso},
+            {"name": "@end", "value": end_iso},
+        ],
+        enable_cross_partition_query=False,
+    ))
+    return items
+
+
 async def update_journal_entry(entry_id: str, user_id: str, updates: dict) -> dict:
     """Update editable fields of a journal entry (summary, moodAtEntry, themes)."""
     container = _container("journal_entries")
@@ -97,14 +122,39 @@ async def update_journal_entry(entry_id: str, user_id: str, updates: dict) -> di
 
 async def get_mood_logs(user_id: str, days: int = 7) -> list[dict]:
     """Fetch recent mood logs for trend analysis."""
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
     items = list(_container("mood_logs").query_items(
         query=(
-            "SELECT TOP @limit * FROM c WHERE c.userId = @uid "
+            "SELECT * FROM c WHERE c.userId = @uid AND c.timestamp >= @cutoff "
             "ORDER BY c.timestamp DESC"
         ),
         parameters=[
             {"name": "@uid", "value": user_id},
-            {"name": "@limit", "value": days},
+            {"name": "@cutoff", "value": cutoff},
+        ],
+        enable_cross_partition_query=False,
+    ))
+    return items
+
+
+async def get_mood_logs_in_range(
+    user_id: str,
+    start_dt: datetime,
+    end_dt: datetime,
+) -> list[dict]:
+    """Fetch mood logs where start_dt <= timestamp < end_dt (UTC ISO timestamps)."""
+    start_iso = start_dt.isoformat()
+    end_iso = end_dt.isoformat()
+    items = list(_container("mood_logs").query_items(
+        query=(
+            "SELECT * FROM c WHERE c.userId = @uid "
+            "AND c.timestamp >= @start AND c.timestamp < @end "
+            "ORDER BY c.timestamp DESC"
+        ),
+        parameters=[
+            {"name": "@uid", "value": user_id},
+            {"name": "@start", "value": start_iso},
+            {"name": "@end", "value": end_iso},
         ],
         enable_cross_partition_query=False,
     ))

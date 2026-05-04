@@ -1,9 +1,14 @@
 """One-time script: bulk-index Cosmos journal entries into Azure AI Search."""
 import asyncio
 import os
+import sys
 from dotenv import load_dotenv
 
 load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "backend", ".env"), override=True)
+
+_repo_root = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+if _repo_root not in sys.path:
+    sys.path.insert(0, _repo_root)
 
 
 async def run():

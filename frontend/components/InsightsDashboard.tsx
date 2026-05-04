@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import MoodSparkline from './MoodSparkline';
+import CalendarView from './CalendarView';
 
 interface MoodLog {
   score: number;
@@ -24,6 +25,7 @@ export default function InsightsDashboard({ userId }: InsightsDashboardProps) {
   const [weekSummary, setWeekSummary] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [calendarOpen, setCalendarOpen] = useState(true);
 
   function loadInsights() {
     setLoading(true);
@@ -124,6 +126,23 @@ export default function InsightsDashboard({ userId }: InsightsDashboardProps) {
           )}
         </div>
       )}
+
+      {/* Calendar (collapsible) */}
+      <div className="insights-card">
+        <button
+          className="journal-expand-btn"
+          onClick={() => setCalendarOpen((v) => !v)}
+          aria-expanded={calendarOpen}
+          style={{ width: '100%' }}
+        >
+          {calendarOpen ? '▲' : '▼'} 📅 Your month at a glance
+        </button>
+        {calendarOpen && (
+          <div style={{ marginTop: '0.75rem' }}>
+            <CalendarView userId={userId} />
+          </div>
+        )}
+      </div>
 
       {/* Mood frequency pills */}
       {Object.keys(moodCounts).length > 0 && (

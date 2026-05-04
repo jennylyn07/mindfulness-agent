@@ -641,7 +641,7 @@ Azure AI Search documents are addressed by their `id` field. When you delete a d
 
 ---
 
-## Phase — Final Polish & Feature Completion (Demo Day)
+## Phase 13 — Final Polish & Feature Completion (Demo Day)
 
 ### Dev Log
 
@@ -781,7 +781,7 @@ River's chat response (`content`) is what the user saw in real time — the empa
 
 ---
 
-## Phase 13 — Weekly Reflection + Sufficiency Verification
+## Phase 14 — Weekly Reflection + Documentation + Sufficiency Verification
 
 ### Dev Log
 
@@ -825,6 +825,10 @@ All MUST items from the blueprint scope table are implemented:
 | `azure-functions/local.settings.json` | Added `BACKEND_URL` key (placeholder — real URL needed for production) |
 | `frontend/components/InsightsDashboard.tsx` | Added `weekSummary` state + "✨ Your week, reflected" card (conditional render) |
 | `frontend/app/globals.css` | Added `.week-summary-card` and `.week-summary-text` styles |
+| `docs/agents.md` | NEW — full agent reference: trigger keywords, SAVE_ENTRY, Grove chat head, memory schema |
+| `docs/architecture.md` | NEW — 6-layer architecture diagram, adapter pattern, streaming pipeline, quirks |
+| `README.md` | Full rewrite: correct tech stack, all API routes, Python setup, restored docs links |
+| `DEMO_SCRIPT.md` | Updated Minute 1 to call out Weekly Reflection card |
 
 **Verified working**
 ```
@@ -864,3 +868,69 @@ The correct architectural boundary is: **Functions talk to the API, not to each 
 ---
 
 *Status: All features complete and verified. Weekly reflection live. Problem statement fully satisfied. Demo-ready.*
+
+---
+
+---
+
+## Phase 15 — Insights Calendar (Month View) + Activity Aggregation
+
+### Dev Log
+
+**What we set out to do**
+- Add a real month-grid calendar inside the Insights tab
+- Fetch activity data dynamically from Cosmos DB (no hardcoded UI)
+- Aggregate journal entries, mood logs, and habit completion into a per-day summary
+
+**What got built**
+- `backend/api/calendar.py` — NEW `GET /calendar` endpoint
+  - Query params: `userId`, `start=YYYY-MM-DD`, `end=YYYY-MM-DD`
+  - Returns `Record<YYYY-MM-DD, { hasJournal, journalMood, journalThemes, mood, moodLabel, habitsCompleted, habitsTotal }>`
+  - Journal and mood queries use true calendar window filtering (range query), not `TOP N`
+- `backend/providers/cosmos_repository.py`
+  - Added range query helpers for journal and mood logs to support the calendar endpoint
+- `backend/main.py`
+  - Registered the new calendar router so the endpoint is available on the API
+- `frontend/components/CalendarView.tsx` — NEW calendar UI
+  - Month navigation (prev/next)
+  - 6-row grid for stable layout
+  - Daily indicators for journal + mood + habit completion
+  - Inline detail panel for selected day
+- `frontend/components/InsightsDashboard.tsx`
+  - Embedded CalendarView as a collapsible section: "📅 Your month at a glance"
+- `frontend/app/globals.css`
+  - Added calendar styles matching the clay design system
+  - Updated day-cell indicator layout to avoid overflow: left-aligned stack
+    - date
+    - dots row
+    - habit stat pill
+
+**Verified working**
+```
+GET /calendar?userId=demo-user-001&start=2026-04-01&end=2026-04-30
+→ 200 OK
+→ Keys are YYYY-MM-DD for every day in range
+→ Early April days: hasJournal=false, mood=null
+→ Journal entries present from 2026-04-19 onward with mood + themes populated
+→ habitsCompleted/habitsTotal correct per day
+```
+
+**Commits**
+- `feat: add insights calendar — /calendar endpoint + CalendarView month grid`
+- `polish: calendar indicator layout to prevent overflow in dense months`
+
+---
+
+### Learning Report (Plain Language)
+
+**Why does the calendar endpoint return a dictionary keyed by date instead of an array?**
+
+Because the UI needs to render a month grid where each cell maps to a single day. A `Record<YYYY-MM-DD, ...>` means the frontend can look up any day in O(1) time without searching an array, and days with no activity still have a predictable default object.
+
+**Why do we query by date range instead of "most recent N" items?**
+
+Calendars are about time windows, not recency. A range query ensures April always shows April’s activity, even if a user has hundreds of mood logs or journal entries. This avoids a subtle bug where older logs could push newer-but-in-range data out of a `TOP N` result.
+
+**Why did the indicator layout matter?**
+
+Dense months can have days where all signals appear at once (journal + mood + habits). The UI was adjusted so the indicators are always constrained inside the cell boundary, ensuring the grid remains stable and readable.
