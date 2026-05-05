@@ -934,3 +934,77 @@ Calendars are about time windows, not recency. A range query ensures April alway
 **Why did the indicator layout matter?**
 
 Dense months can have days where all signals appear at once (journal + mood + habits). The UI was adjusted so the indicators are always constrained inside the cell boundary, ensuring the grid remains stable and readable.
+
+---
+
+---
+
+## Phase 16 — README Audit & Final Verification
+
+### Dev Log
+
+**What this session addressed**
+Post-build audit of the README against the actual codebase before final commit. Every claim in the README was verified by reading the corresponding source files — not from memory. Two inaccuracies were found and corrected. Everything else was confirmed accurate.
+
+**Methodology**
+Files read for verification: `backend/main.py`, all 6 `backend/agents/*.py`, all 8 `backend/api/*.py`, `backend/models/schemas.py`, `backend/providers/*.py`, `backend/kernel.py`, `backend/requirements.txt`, `azure-functions/function_app.py`, `frontend/app/page.tsx`, all 9 `frontend/components/*.tsx`, `seed/seed.py`, and the `azure-functions/` directory listing.
+
+**What was verified as accurate**
+
+| Claim | File verified against |
+|---|---|
+| All 6 agent files and descriptions | `backend/agents/` — all present, names match |
+| SK `semantic-kernel==1.41.3` | `backend/requirements.txt` |
+| FastAPI: 8 routers registered | `backend/main.py` lines 29–36 |
+| Orchestrator: JSON mode, temp=0, fallback "journal" | `orchestrator.py` |
+| Memory: facts ≥0.6, 12 cap, 14-day decay, 0.05 reduction | `memory_agent.py` — `_FACT_THRESHOLD`, `_MAX_FACTS`, `_DECAY_DAYS` |
+| Memory: 60-char dedup prefix check | `memory_agent.py` line 181 |
+| Memory: JSON fence-strip guard | `memory_agent.py` lines 160–163 |
+| Memory: weekSummary TTL = 7 days | `_WEEK_SUMMARY_TTL_DAYS = 7` |
+| River: SAVE_ENTRY buffer parser, ensure_future | `backend/api/chat.py` |
+| agentOverride bypass | `chat.py` + `schemas.py` |
+| Grove: sessionStorage 60-min TTL + date key | `HabitCoach.tsx` lines 38–45 |
+| Grove nudge temp=0.85 | `grove.py` line 60 |
+| Grove: single `_calc_streak` helper | `function_app.py` |
+| Lumen: top_k=5 hybrid search | `insights_agent.py` |
+| Embeddings: `text-embedding-3-small-1`, 1536-dim | `kernel.py` |
+| Cosmos: 5 collections, correct names | `cosmos_repository.py` + `seed.py` |
+| Seed: 14 journal entries, 14 mood logs, 5 habits | `seed.py` — confirmed by counting arrays |
+| 9 frontend components, all correct file names | `frontend/components/` directory listing |
+| docs/agents.md, docs/architecture.md present | `docs/` directory listing |
+
+**What was corrected**
+
+| Claim in draft README | Actual code | Correction |
+|---|---|---|
+| "5 HTTP routes + weekly timer trigger" in Azure Functions | `function_app.py` has 6 HTTP routes: `GET /habits`, `POST /habits`, `PATCH /habits/{id}/log`, `PATCH /habits/{id}/unlog`, `PATCH /habits/{id}`, `POST /mood` — the unlog route was missing from the count | Changed to "6 HTTP routes + weekly timer trigger" in project structure comment |
+| Local setup: `cp local.settings.json.example local.settings.json` | No `.example` file exists in `azure-functions/` — confirmed by directory listing | Instruction changed to "Edit `local.settings.json` directly" |
+
+**Additional finding — no code impact**
+The QA verification table in the README lists 13 routes (what was tested at QA sign-off). The total FastAPI route surface is 15 distinct endpoints — unlog and update-habit-fields were added after the Phase 12 QA pass. The table documents what was verified, not a complete route inventory. No change needed.
+
+**Also corrected in README**
+The DEVLOG header reference in `README.md` said "13-phase dev log" — updated to "16-phase" to reflect the current phase count.
+
+**Commit**
+- `docs: verify README against codebase — correct Azure Functions route count and local settings setup`
+
+---
+
+### Learning Report (Plain Language)
+
+**Why audit the README against source files instead of from memory?**
+
+A README written during a build reflects the *intended* system. Code written during a build reflects the *actual* system. These diverge. In a fast build, it's normal to add a route, fix a bug, or rename something and forget to update the documentation. The only reliable way to confirm accuracy is to read both the claim and the implementation and compare them directly — not to rely on the author's recollection of what they built.
+
+**What's the difference between "routes tested in QA" and "routes that exist"?**
+
+The QA sign-off table is a record of what was explicitly tested end-to-end with a confirmed 200 OK. It's not a complete API inventory. Routes added after QA (like unlog, which was added in Phase 13 along with the full streak overhaul) are implemented, tested implicitly through the frontend, and working — but they weren't part of the formal QA pass. Both are true simultaneously and neither contradicts the other.
+
+**Why does it matter that `local.settings.json.example` doesn't exist?**
+
+If a contributor follows the README setup instructions exactly and runs `cp local.settings.json.example local.settings.json`, they get `cp: local.settings.json.example: No such file or directory`. This is a silent failure — the copy command fails, `local.settings.json` doesn't get created, and `func start` refuses to run. A README with a broken setup step is worse than no README, because it creates the impression that setup is easy when it's actually going to error. The corrected instruction points to the file that actually exists.
+
+---
+
+*Status: README verified against codebase. Two corrections applied. DEVLOG complete through Phase 16. Ready to commit.*
