@@ -52,6 +52,8 @@ Intent router. Never produces a user-facing response. Makes one fast LLM call in
 - **JSON mode** — structured output only, no prose
 - **Silent fallback** — on any exception (network timeout, malformed JSON), returns `OrchestratorResult(agent="journal")` and continues
 - **Target latency:** <300ms — uses direct Azure OpenAI call, not Semantic Kernel
+- **CONTINUITY RULE** — if the last 6 turns of `conversationHistory` contain an unanswered habit question (e.g. Grove asked for the user's WHY), the current message routes to `habit` regardless of emotional keywords. Prevents WHY answers being misclassified as Sage.
+- **History-aware** — `classify(message, conversationHistory)` injects the last 6 turns into the classification prompt. Chat history is passed from `request.conversationHistory` in `chat.py`.
 
 ### agentOverride bypass
 When `agentOverride` is set on the `ChatRequest`, the Orchestrator LLM call is skipped entirely. Used by the Grove chat head in the Habits tab where intent is always `"habit"` — saves ~300ms per message.
@@ -93,8 +95,9 @@ Additional rules:
 - **Deduplication:** First 60 characters compared (case-insensitive). Near-duplicate facts are skipped.
 - **Cap:** Maximum 12 facts per user. Lowest-importance facts dropped when cap is exceeded.
 - **Fence-strip guard:** If the model wraps its JSON in markdown code fences (` ```json ... ``` `), they are stripped before `json.loads()`.
+- **Three-attempt JSON parse fallback:** Tries `json.loads(raw)` → `json.loads(f"{{{raw}}}")` → falls back to `{}`. Prevents WRITE failures when the LLM omits outer braces on the JSON object.
 
-Both READ and WRITE use `asyncio.ensure_future()` — non-blocking, never adds latency to the user's response.
+READ is **awaited synchronously** (must complete before the specialist runs). WRITE runs via `asyncio.ensure_future()` — non-blocking, after the stream completes.
 
 ### Weekly summary (`rebuild_week_summary`)
 Called from `GET /insights` on every load (TTL-gated):
@@ -159,10 +162,11 @@ Core Capability 2 from problem statement. Reflective journaling companion. Defau
 River appends a structured block to every response:
 ```
 [SAVE_ENTRY]
-mood: anxious
-sentiment: negative
-themes: work stress, manager conflict
-summary: I felt overwhelmed during the deadline and noticed I was snapping at people I care about.
+content: <River's full response text>
+summary: <one-line first-person summary>
+moodAtEntry: <detected mood word>
+sentiment: positive | neutral | negative
+themes: <comma-separated list>
 [/SAVE_ENTRY]
 ```
 
@@ -170,7 +174,7 @@ The stream parser in `chat.py` intercepts this block mid-stream:
 - Everything **before** `[SAVE_ENTRY]` is yielded to the user normally
 - The block itself is captured but **not** yielded
 - On `[/SAVE_ENTRY]`, the block is parsed and saved to Cosmos DB as a journal entry
-- The entry is asynchronously indexed in Azure AI Search via `bulk_index()`
+- After save, a deterministic confirmation is yielded: `✓ Entry saved to your Journal.`
 
 **Summary is first-person** ("I realised...", "I felt...") — not third-person case note style.
 
@@ -191,7 +195,31 @@ Core Capability 3 from problem statement. WHY-first habit coaching philosophy. N
 ### Trigger keywords
 `habit`, `goal`, `routine`, `did I`, `check in`, `log`, `track`, `streak`, `missed`, `skipped`
 
-### Behaviour
+### Habit creation via chat — CREATE_HABIT block
+Grove uses a two-state machine to collect both a habit name and a WHY before saving:
+
+**SCAN HISTORY FIRST:** Before responding, Grove scans the full conversation history:
+- If no `NAME_FOUND` → ask "What habit would you like to build?"
+- If `NAME_FOUND` but no `WHY_FOUND` → ask "What's the reason behind this one?"
+- If both `NAME_FOUND` AND `WHY_FOUND` → emit warm closing + `[CREATE_HABIT]` block
+
+```
+[CREATE_HABIT]
+name: <habit name>
+why: <user's WHY>
+targetTime: <optional>
+[/CREATE_HABIT]
+```
+
+The stream parser in `chat.py` intercepts this block identically to `[SAVE_ENTRY]`:
+- Block content is captured but not yielded to the user
+- On `[/CREATE_HABIT]`, `_parse_and_create_habit()` runs via `asyncio.ensure_future()`
+- Writes **directly to Cosmos DB** via `db.create_habit()` — no HTTP hop to Azure Functions
+- After save, a confirmation is yielded: `✓ "Habit Name" has been added to your Habits tab.`
+
+This flow works identically in the main Chat tab and the HabitCoach FAB panel.
+
+### General coaching behaviour
 | Scenario | Response |
 |---|---|
 | New habit | Asks WHY before WHAT. Values-connected habits stick longer. Makes initial version tiny enough to guarantee early success. |
@@ -211,6 +239,7 @@ Grove powers a Messenger-style floating chat head in the Habits tab:
 - **Cache:** `sessionStorage` with key `grove_nudge_{userId}_{date}` — 60-minute TTL + date key
 - **Chat panel:** Glassmorphism (rgba 0.72 + blur 18px). Opening message = DM bubble content (always in sync)
 - **Routing:** Uses `agentOverride: "habit"` — bypasses Orchestrator
+- **Conversation history:** Sends real `conversationHistory` built from `messages` state on every turn — Grove maintains full context across the multi-turn creation flow
 
 ### GET /grove/nudge
 Non-streaming GPT-4o call (temp=0.85 for variation). Fetches user's habits + memory context, generates a warm proactive message. Returns `{ nudge, date }`.

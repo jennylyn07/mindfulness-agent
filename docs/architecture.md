@@ -82,11 +82,13 @@ MindFlow is a **6-layer system** with clean separation between presentation, API
 │  SERVERLESS / SCHEDULED LAYER                                │
 │  Azure Functions v2 Python (mindflow-functions.azurewebsites)│
 │                                                              │
-│  HTTP routes:                                                │
+│  HTTP routes (6 total):                                      │
 │  · GET  /api/habits                                         │
 │  · POST /api/habits                                         │
-│  · PATCH /api/habits/{id}/log    (streak recalculation)     │
-│  · DELETE /api/habits/{id}       (soft-delete)              │
+│  · PATCH /api/habits/{id}/log    (add today, recalc streak) │
+│  · PATCH /api/habits/{id}/unlog  (remove today, recalc)     │
+│  · PATCH /api/habits/{id}        (edit name/why/targetTime) │
+│  · DELETE /api/habits/{id}       (soft-delete active=false) │
 │  · POST /api/mood                                           │
 │                                                             │
 │  Timer trigger (Sunday 08:00 UTC):                         │
@@ -137,8 +139,9 @@ CORS is configured on FastAPI only (`allow_origins=[localhost:3000, FRONTEND_URL
 ```
 1. Parse ChatRequest {message, userId, chatHistory, agentOverride?}
 
-2. Orchestrator.classify(message)
+2. Orchestrator.classify(message, conversationHistory)
    → {agent, mood, urgency, confidence}
+   → CONTINUITY RULE: if last 6 turns contain unanswered habit question → force `habit`
    → SKIP if agentOverride is set (saves ~300ms)
 
 3. memory_agent.read(userId, mood, urgency)
@@ -154,11 +157,18 @@ CORS is configured on FastAPI only (`allow_origins=[localhost:3000, FRONTEND_URL
 
 6. async for chunk in agent.invoke_stream(history):
    → _chunk_text(chunk)         ← extracts text safely from StreamingChatMessageContent
+   → buffer hold: _HOLD = 14 chars (max marker length) — prevents partial marker leak
    → River: buffer check for [SAVE_ENTRY]...[/SAVE_ENTRY]
       · content before [SAVE_ENTRY] → yield to user
       · block content → capture, do not yield
       · on [/SAVE_ENTRY] → asyncio.ensure_future(_parse_and_save_entry(...))
-   → Non-River: yield chunk directly
+      · then yield: "✓ Entry saved to your Journal."
+   → Grove: buffer check for [CREATE_HABIT]...[/CREATE_HABIT]
+      · block content → capture, do not yield
+      · on [/CREATE_HABIT] → asyncio.ensure_future(_parse_and_create_habit(...))
+      · _parse_and_create_habit writes directly to Cosmos via db.create_habit()
+      · then yield: "✓ \"Habit Name\" has been added to your Habits tab."
+   → All other content: yield chunk directly
 
 7. try/except ValueError:
    → Catches SK + FastAPI OpenTelemetry ContextVar cleanup error

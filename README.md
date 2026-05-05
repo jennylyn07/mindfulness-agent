@@ -121,11 +121,13 @@ Responds as an empathetic journaling partner — asks one specific, contextual q
 ---
 
 ### 🌱 Agent 5 — Grove (Habit Coach)
-**Role:** WHY-first habit coaching with no-guilt streak recovery
+**Role:** WHY-first habit coaching with no-guilt streak recovery and autonomous habit creation via chat
 
-Grove's philosophy: every habit has a reason, and the reason is what makes it stick. When a user creates a habit, Grove asks for the WHY — stored in memory and referenced on every subsequent interaction. Streak recovery is guilt-free by design: "Missing one day doesn't break a habit. Starting again does." Grove powers a Messenger-style floating chat head in the Habits tab — AI-generated daily nudges use live habit data and memory context. Streak logic uses a single authoritative `_calc_streak(logs, as_of)` helper called from GET, log, and unlog — ensuring GET, PATCH, and DELETE always agree on the streak value.
+Grove's philosophy: every habit has a reason, and the reason is what makes it stick. When a user wants to create a habit, Grove runs a two-state machine — it first collects the habit name, then asks for the WHY. Once both are provided, it appends a `[CREATE_HABIT]...[/CREATE_HABIT]` block to its response (the same buffer-strip pattern as River's `[SAVE_ENTRY]`). The streaming pipeline intercepts this block, parses it, and writes the new habit **directly to Cosmos DB** via `db.create_habit()` — then yields a deterministic confirmation token (`✓ "Habit Name" has been added to your Habits tab.`) that appears in the chat bubble. The Habits tab re-fetches automatically when the user navigates to it.
 
-**Technology:** GPT-4o · `agentOverride` bypass · sessionStorage cache (60-min TTL + date key) · Azure Functions v2 · Single-source streak helper · WHY stored in Memory Agent
+Streak recovery is guilt-free by design: "Missing one day doesn't break a habit. Starting again does." Grove powers a Messenger-style floating chat head in the Habits tab — AI-generated daily nudges use live habit data and memory context. Streak logic uses a single authoritative `_calc_streak(logs, as_of)` helper called from GET, log, and unlog — ensuring all operations always agree on the streak value.
+
+**Technology:** GPT-4o · `[CREATE_HABIT]` buffer-strip parser · Direct Cosmos write (`db.create_habit()`) · `agentOverride` bypass · sessionStorage cache (60-min TTL + date key) · Azure Functions v2 · Single-source streak helper · WHY stored in Memory Agent
 
 ---
 
@@ -168,11 +170,21 @@ This week: Mood trending upward (4→9). Meditation streak: 5 days.
 **River SAVE_ENTRY block (intercepted mid-stream, never shown to user):**
 ```
 [SAVE_ENTRY]
-mood: anxious
+content: <River's full response text>
+summary: I felt overwhelmed and noticed physical tension in my shoulders.
+moodAtEntry: anxious
 sentiment: negative
 themes: work stress, deadline pressure
-summary: I felt overwhelmed and noticed physical tension in my shoulders.
 [/SAVE_ENTRY]
+```
+
+**Grove CREATE_HABIT block (intercepted mid-stream, never shown to user):**
+```
+[CREATE_HABIT]
+name: Morning meditation
+why: To start the day with intention and reduce anxiety
+targetTime: 07:00
+[/CREATE_HABIT]
 ```
 
 **Streaming agent token (first chunk — frontend extracts and strips):**
@@ -180,7 +192,7 @@ summary: I felt overwhelmed and noticed physical tension in my shoulders.
 [AGENT:mindfulness]\n
 ```
 
-Every Memory WRITE call and SAVE_ENTRY parse runs via `asyncio.ensure_future()` — non-blocking, the user receives the stream completion signal immediately.
+Every Memory WRITE call, SAVE_ENTRY parse, and CREATE_HABIT parse runs via `asyncio.ensure_future()` — non-blocking, the user receives the stream completion signal immediately.
 
 ---
 
@@ -234,7 +246,7 @@ Every Memory WRITE call and SAVE_ENTRY parse runs via `asyncio.ensure_future()` 
 
 ## Verification
 
-End-to-end QA pass confirmed all 13 routes returning 200 OK:
+End-to-end QA pass confirmed 13 core routes returning 200 OK. Two additional routes (`PATCH /habits/{id}/unlog`, `PATCH /habits/{id}`) were added in Phase 13 and verified through frontend integration testing:
 
 | Route | Result | Notes |
 |---|---|---|
@@ -243,6 +255,8 @@ End-to-end QA pass confirmed all 13 routes returning 200 OK:
 | `GET /habits` | ✅ | 5 active habits |
 | `POST /habits` | ✅ | |
 | `PATCH /habits/{id}/log` | ✅ | streak incremented correctly |
+| `PATCH /habits/{id}/unlog` | ✅ | streak recalculated as-of-yesterday |
+| `PATCH /habits/{id}` | ✅ | edit name/why/targetTime |
 | `DELETE /habits/{id}` | ✅ | soft-delete, active=False |
 | `POST /mood` | ✅ | |
 | `GET /journal` | ✅ | 14 entries, newest-first |
