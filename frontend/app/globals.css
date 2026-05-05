@@ -1173,6 +1173,60 @@ code, pre, .font-mono {
   font-size: 0.8rem;
   color: var(--text-mid);
   line-height: 1.5;
+  margin-bottom: 0.75rem;
+}
+
+.lumen-ask-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 0.45rem 1.1rem;
+  border-radius: 20px;
+  border: none;
+  background: var(--lavender);
+  color: white;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(123,113,163,0.3);
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  letter-spacing: 0.01em;
+}
+
+.lumen-ask-btn:hover {
+  opacity: 0.88;
+  transform: translateY(-1px);
+}
+
+/* ── Orchestrator routing flash ─────────────────────────── */
+.routing-flash {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  padding: 0.2rem 0.6rem;
+  border-radius: 20px;
+  background: var(--cream);
+  box-shadow: var(--clay-in);
+  letter-spacing: 0.02em;
+  animation: fadeIn 0.1s ease-out;
+}
+
+.routing-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--sage);
+  display: inline-block;
+  animation: routingPulse 0.8s ease-in-out infinite;
+}
+
+@keyframes routingPulse {
+  0%, 100% { opacity: 0.4; transform: scale(0.85); }
+  50%       { opacity: 1;   transform: scale(1.15); }
 }
 
 /* ── Weekly Reflection card ─────────────────────────────── */

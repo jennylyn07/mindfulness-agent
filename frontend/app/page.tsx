@@ -16,6 +16,7 @@ export default function Home() {
   const [tab, setTab] = useState<Tab>('chat');
   const [bannerDismissed, setBannerDismissed] = useState(false);
   const [userName, setUserName] = useState('');
+  const [chatPreset, setChatPreset] = useState<string | null>(null);
   // Track which tabs have been visited so secondary tabs stay mounted
   const visitedTabs = useRef<Set<Tab>>(new Set<Tab>(['chat']));
 
@@ -36,9 +37,21 @@ export default function Home() {
     setTab(t);
   }
 
+  // Lumen button: switch to chat and auto-send the patterns question
+  function handleAskLumen() {
+    switchTab('chat');
+    setChatPreset('What patterns do you see across my journal entries?');
+  }
+
   async function handleMoodSelect(mood: string, score: number) {
     // Dismiss after toast animation completes (MorningBanner shows toast for 800ms)
     setTimeout(() => setBannerDismissed(true), 1200);
+    // Low mood (rough/anxious ≤ 4) → gently surface Sage after banner dismisses
+    if (score <= 4) {
+      setTimeout(() => setChatPreset(
+        `I just checked in feeling ${mood}. Can you help me breathe for a moment?`
+      ), 1400);
+    }
     try {
       await fetch(`${API_URL}/mood`, {
         method: 'POST',
@@ -92,7 +105,11 @@ export default function Home() {
               onMoodSelect={handleMoodSelect}
             />
           )}
-          <ChatWindow userId={USER_ID} />
+          <ChatWindow
+            userId={USER_ID}
+            presetMessage={chatPreset}
+            onPresetConsumed={() => setChatPreset(null)}
+          />
         </div>
 
         {/* Habits — lazy mount on first visit, stays mounted after */}
@@ -112,7 +129,7 @@ export default function Home() {
         {/* Insights — lazy mount on first visit, stays mounted after */}
         {visitedTabs.current.has('insights') && (
           <div className={`tab-panel ${tab === 'insights' ? 'tab-panel-active' : ''}`}>
-            <InsightsDashboard userId={USER_ID} />
+            <InsightsDashboard userId={USER_ID} onAskLumen={handleAskLumen} />
           </div>
         )}
 

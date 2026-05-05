@@ -16,8 +16,10 @@ Decision (correction): asyncio.ensure_future() used inside async generators —
 import asyncio
 import json
 import uuid
+import os
 from datetime import datetime, timezone
 
+import httpx
 from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 from semantic_kernel.contents import ChatHistory
@@ -30,7 +32,12 @@ from backend.providers import cosmos_repository as db
 router = APIRouter()
 
 _SAVE_START = "[SAVE_ENTRY]"
-_SAVE_END = "[/SAVE_ENTRY]"
+_SAVE_END   = "[/SAVE_ENTRY]"
+_HABIT_START = "[CREATE_HABIT]"
+_HABIT_END   = "[/CREATE_HABIT]"
+
+_FUNCTIONS_HABIT_URL = os.getenv("FUNCTIONS_HABIT_URL", "http://localhost:7071")
+_DEMO_USER_ID        = os.getenv("DEMO_USER_ID", "demo-user-001")
 
 
 def _chunk_text(chunk) -> str:
@@ -139,6 +146,58 @@ async def _parse_and_save_entry(buffer: str, user_id: str) -> None:
         print(f"[River] _parse_and_save_entry failed: {e}")
 
 
+# ── CREATE_HABIT parser ─────────────────────────────────────
+
+async def _parse_and_create_habit(buffer: str, user_id: str) -> None:
+    """
+    Extract the [CREATE_HABIT] block from Grove's response buffer,
+    parse name/why/targetTime, and POST to the habits proxy (Azure Functions).
+    Runs as a background task via ensure_future — never blocks the stream.
+    """
+    try:
+        start_idx = buffer.find(_HABIT_START)
+        end_idx   = buffer.find(_HABIT_END)
+        if start_idx == -1 or end_idx == -1:
+            return
+
+        block = buffer[start_idx + len(_HABIT_START): end_idx].strip()
+        fields: dict = {}
+        for line in block.splitlines():
+            if ":" in line:
+                key, _, val = line.partition(":")
+                fields[key.strip()] = val.strip()
+
+        name = fields.get("name", "").strip()
+        why  = fields.get("why",  "").strip()
+        target_time = fields.get("targetTime", "").strip()
+
+        if not name or not why:
+            print("[Grove] CREATE_HABIT block missing name or why — skipping")
+            return
+
+        payload = {
+            "userId": user_id,
+            "name": name,
+            "why": why,
+            "frequency": "daily",
+            "targetTime": target_time or "",
+            "durationMins": 0,
+        }
+
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            r = await client.post(
+                f"{_FUNCTIONS_HABIT_URL}/api/habits",
+                json=payload,
+            )
+            if r.status_code in (200, 201):
+                print(f"[Grove] Created habit '{name}' for {user_id}")
+            else:
+                print(f"[Grove] Habit create returned {r.status_code}: {r.text[:120]}")
+
+    except Exception as e:
+        print(f"[Grove] _parse_and_create_habit failed: {e}")
+
+
 # ── /chat route ────────────────────────────────────────────
 
 @router.post("/chat")
@@ -191,10 +250,11 @@ async def chat(request: ChatRequest):
 
             history.add_user_message(request.message)
 
-            # 4. Stream response — buffer-strip [SAVE_ENTRY] block
+            # 4. Stream response — buffer-strip [SAVE_ENTRY] and [CREATE_HABIT] blocks
             full_response = ""
             buffer = ""
-            in_save_block = False
+            in_save_block  = False
+            in_habit_block = False
             _HOLD = len(_SAVE_START)  # hold back 13 chars to catch partial tags
 
             # Yield agent name as first token so frontend can show agent badge
@@ -209,7 +269,8 @@ async def chat(request: ChatRequest):
 
                     buffer += content
 
-                    if not in_save_block and _SAVE_START in buffer:
+                    # ── SAVE_ENTRY interception (River) ────────────
+                    if not in_save_block and not in_habit_block and _SAVE_START in buffer:
                         in_save_block = True
                         pre = buffer[: buffer.index(_SAVE_START)]
                         unsent = pre[len(full_response):]
@@ -217,8 +278,17 @@ async def chat(request: ChatRequest):
                             yield unsent
                             full_response += unsent
 
-                    elif not in_save_block:
-                        # Only yield what's safely before any potential [SAVE_ENTRY] prefix
+                    # ── CREATE_HABIT interception (Grove) ──────────
+                    elif not in_save_block and not in_habit_block and _HABIT_START in buffer:
+                        in_habit_block = True
+                        pre = buffer[: buffer.index(_HABIT_START)]
+                        unsent = pre[len(full_response):]
+                        if unsent:
+                            yield unsent
+                            full_response += unsent
+
+                    elif not in_save_block and not in_habit_block:
+                        # Only yield what's safely before any potential marker prefix
                         safe_end = max(len(full_response), len(buffer) - _HOLD)
                         safe_content = buffer[len(full_response): safe_end]
                         if safe_content:
@@ -231,8 +301,14 @@ async def chat(request: ChatRequest):
                         )
                         break
 
-                # Flush remaining held-back content if no SAVE_ENTRY was encountered
-                if not in_save_block:
+                    if in_habit_block and _HABIT_END in buffer:
+                        asyncio.ensure_future(
+                            _parse_and_create_habit(buffer, request.userId)
+                        )
+                        break
+
+                # Flush remaining held-back content if no marker was encountered
+                if not in_save_block and not in_habit_block:
                     remaining = buffer[len(full_response):]
                     if remaining:
                         yield remaining

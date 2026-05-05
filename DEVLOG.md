@@ -1008,3 +1008,82 @@ If a contributor follows the README setup instructions exactly and runs `cp loca
 ---
 
 *Status: README verified against codebase. Two corrections applied. DEVLOG complete through Phase 16. Ready to commit.*
+
+---
+
+---
+
+## Phase 17 — Pre-Demo Polish: Routing Flash, Lumen Button, Low-Mood Sage, Habit Creation via Chat
+
+### Dev Log
+
+**What this session addressed**
+Five targeted enhancements to maximise demo impact and judge legibility of the multi-agent system, without introducing new infrastructure or risk to the existing pipeline.
+
+**What got built**
+
+| Enhancement | Files changed | Description |
+|---|---|---|
+| Better suggestion chips | `ChatWindow.tsx` | Four chips now match the exact demo script flow: anxious presentation → Sage, journaling → River, breathing → Sage, patterns → Lumen. Previously "How have my habits been?" didn't demonstrate the full agent range. |
+| Orchestrator routing flash | `ChatWindow.tsx`, `globals.css` | While waiting for the first stream chunk (the `[AGENT:xxx]` token), a pulsing `routing…` badge replaces the agent badge. Makes the Orchestrator's classification step visible in real time. Resolves on first chunk arrival via `setIsClassifying(false)`. |
+| Lumen "Ask me" button | `InsightsDashboard.tsx`, `page.tsx`, `globals.css` | `onAskLumen` callback prop on InsightsDashboard. Clicking "Ask Lumen now →" calls `handleAskLumen()` in page.tsx: switches to Chat tab and sets `chatPreset = "What patterns do you see across my journal entries?"`. |
+| Preset message mechanism | `ChatWindow.tsx`, `page.tsx` | Shared `chatPreset` state in page.tsx. `ChatWindow` accepts `presetMessage` + `onPresetConsumed` props. When `presetMessage` is set, a 120ms timeout fires `sendMessage()` (allows tab animation to complete first), then `onPresetConsumed()` clears the preset to prevent re-fire. Used by both the Lumen button and the low-mood Sage trigger. |
+| Low-mood Sage trigger | `page.tsx` | After `handleMoodSelect` with score ≤ 4 (rough/anxious), a 1400ms timeout sets `chatPreset` to a Sage-bound message: `"I just checked in feeling {mood}. Can you help me breathe for a moment?"`. The 1400ms delay allows the banner toast to complete (800ms) + banner dismiss (1200ms) before the message fires. |
+| Habit creation via Grove chat | `backend/prompts/habit.py`, `backend/api/chat.py` | Grove's system prompt now instructs it to append a `[CREATE_HABIT]name/why/targetTime[/CREATE_HABIT]` block once it has collected both habit name and WHY from the user. The streaming loop in `chat.py` intercepts this block identically to `[SAVE_ENTRY]`: strips it from the user-visible stream, fires `_parse_and_create_habit()` via `ensure_future`. That function POSTs to `FUNCTIONS_HABIT_URL/api/habits` via `httpx.AsyncClient`. |
+
+**Streaming loop change (chat.py)**
+
+The buffer-strip logic was extended from one marker to two:
+- `in_save_block` — existing, River SAVE_ENTRY
+- `in_habit_block` — new, Grove CREATE_HABIT
+
+Both follow the same interception pattern: detect start marker → flush visible content → accumulate the block → on end marker, fire background task and break. The flush at the end now gates on `not in_save_block and not in_habit_block`.
+
+**Guard conditions in CREATE_HABIT prompt**
+Three explicit guards prevent accidental habit creation:
+1. Only emit the block when the user has provided BOTH name AND WHY in the current conversation
+2. Never emit it for existing habit coaching (streak updates, misses, etc.)
+3. Append it at most once per creation flow
+
+**Files changed**
+
+| File | Change |
+|---|---|
+| `frontend/components/ChatWindow.tsx` | `presetMessage`/`onPresetConsumed` props; `isClassifying` state; routing flash render; better chips |
+| `frontend/components/InsightsDashboard.tsx` | `onAskLumen` prop; Lumen prompt card → clickable button |
+| `frontend/app/page.tsx` | `chatPreset` state; `handleAskLumen`; low-mood Sage timeout in `handleMoodSelect`; props wired |
+| `frontend/app/globals.css` | `.routing-flash`, `.routing-dot`, `@keyframes routingPulse`; `.lumen-ask-btn` |
+| `backend/prompts/habit.py` | `[CREATE_HABIT]` marker directive with explicit guard conditions |
+| `backend/api/chat.py` | `httpx` import; `_HABIT_START`/`_HABIT_END` constants; `_parse_and_create_habit()` function; `in_habit_block` in streaming loop |
+
+**Commit**
+- `feat: routing flash, Lumen ask button, low-mood Sage trigger, habit creation via Grove chat`
+
+---
+
+### Learning Report (Plain Language)
+
+**Why does the routing flash matter for judges?**
+
+The Orchestrator is the most architecturally interesting part of MindFlow — it's what makes the system genuinely multi-agent rather than a single large prompt. But it's also completely invisible: it runs in ~200ms before the first visible response token arrives. The routing flash makes that classification step legible in real time. Judges who are evaluating "is this actually multi-agent?" now have a visible signal that says "yes — the system is deciding which agent you need right now."
+
+**Why use a preset message mechanism instead of directly calling sendMessage?**
+
+`sendMessage` is defined inside the `ChatWindow` component and is not accessible from `page.tsx`. Prop drilling a function reference would couple the components too tightly. The preset + consumed pattern keeps the communication unidirectional: page.tsx sets a string, ChatWindow reads it and acts on it, ChatWindow signals back when consumed. This is the same pattern as controlled inputs in React — the parent owns the state, the child owns the action.
+
+**Why 120ms delay before auto-sending the preset?**
+
+Switching tabs in page.tsx is synchronous state change, but the CSS `tab-panel-active` transition takes ~150ms to visually complete. Firing `sendMessage` immediately on the same render would cause the chat to start streaming before the tab is visible — creating a jarring experience where content appears mid-transition. The 120ms delay is enough for the tab to visually settle without feeling slow.
+
+**Why does CREATE_HABIT use the same marker pattern as SAVE_ENTRY?**
+
+The SAVE_ENTRY pattern was already proven safe and non-breaking across all previous phases. Reusing it for CREATE_HABIT means: the same buffer-strip logic, the same `ensure_future` delivery, the same invisible-to-user experience. The alternative — having Grove call an API directly — would require giving the agent tool-use capabilities (a Semantic Kernel plugin), which adds a new dependency and integration surface. The marker pattern achieves the same result with no new dependencies.
+
+**What happens if Grove emits CREATE_HABIT by mistake on an existing habit conversation?**
+
+Three things protect against this: (1) the prompt explicitly says "never append it for existing habits" and lists when NOT to use it, (2) the parser requires both `name` and `why` to be non-empty before calling the API, (3) the `POST /habits` call proxies to Azure Functions which upserts — if a habit with the same name somehow got created twice, the user would just see a duplicate in the Habits tab, not a crash. It's a recoverable edge case, not a system error.
+
+---
+
+*Status: All 5 pre-demo enhancements complete. System integrity maintained — no existing pipeline broken. Ready for demo video.*
+

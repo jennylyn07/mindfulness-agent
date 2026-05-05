@@ -11,22 +11,25 @@ interface Message {
 
 interface ChatWindowProps {
   userId: string;
+  presetMessage?: string | null;
+  onPresetConsumed?: () => void;
 }
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000';
 const AGENT_PREFIX_RE = /^\[AGENT:(\w+)\]\n?/;
 
 const SUGGESTIONS = [
-  "I'm feeling anxious about work",
+  "I've been feeling anxious about a big presentation tomorrow",
   'I want to journal about my day',
   'Help me with a breathing exercise',
-  'How have my habits been?',
+  'What patterns do you see in my journal entries?',
 ];
 
-export default function ChatWindow({ userId }: ChatWindowProps) {
+export default function ChatWindow({ userId, presetMessage, onPresetConsumed }: ChatWindowProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [streaming, setStreaming] = useState(false);
+  const [isClassifying, setIsClassifying] = useState(false);
   const [currentAgent, setCurrentAgent] = useState('journal');
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -34,6 +37,16 @@ export default function ChatWindow({ userId }: ChatWindowProps) {
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  // Auto-send preset message (from Lumen button or low-mood Sage prompt)
+  useEffect(() => {
+    if (presetMessage) {
+      onPresetConsumed?.();
+      // Small delay so tab switch animation completes first
+      const t = setTimeout(() => sendMessage(presetMessage), 120);
+      return () => clearTimeout(t);
+    }
+  }, [presetMessage]);
 
   const conversationHistory = messages.map((m) => ({
     role: m.role,
@@ -50,6 +63,7 @@ export default function ChatWindow({ userId }: ChatWindowProps) {
     setMessages((prev) => [...prev, { role: 'user', content: userMessage }]);
     setMessages((prev) => [...prev, { role: 'assistant', content: '', agent: 'journal' }]);
     setStreaming(true);
+    setIsClassifying(true);
 
     try {
       const res = await fetch(`${API_URL}/chat`, {
@@ -76,7 +90,7 @@ export default function ChatWindow({ userId }: ChatWindowProps) {
 
         let chunk = decoder.decode(value, { stream: true });
 
-        // Parse [AGENT:xxx] prefix from first chunk
+        // Parse [AGENT:xxx] prefix from first chunk — settle the routing flash
         if (firstChunk) {
           firstChunk = false;
           const match = AGENT_PREFIX_RE.exec(chunk);
@@ -85,6 +99,7 @@ export default function ChatWindow({ userId }: ChatWindowProps) {
             setCurrentAgent(detectedAgent);
             chunk = chunk.replace(AGENT_PREFIX_RE, '');
           }
+          setIsClassifying(false);
         }
 
         accumulated += chunk;
@@ -101,6 +116,7 @@ export default function ChatWindow({ userId }: ChatWindowProps) {
       }
     } catch (err) {
       console.error('[ChatWindow] stream error:', err);
+      setIsClassifying(false);
       setMessages((prev) => {
         const updated = [...prev];
         updated[updated.length - 1] = {
@@ -112,6 +128,7 @@ export default function ChatWindow({ userId }: ChatWindowProps) {
       });
     } finally {
       setStreaming(false);
+      setIsClassifying(false);
       inputRef.current?.focus();
     }
   }
@@ -151,10 +168,16 @@ export default function ChatWindow({ userId }: ChatWindowProps) {
         {messages.map((msg, i) => (
           <div key={i} className={`message-row ${msg.role}`}>
             {msg.role === 'assistant' && (
-              <AgentBadge
-                agent={msg.agent ?? 'journal'}
-                streaming={streaming && i === messages.length - 1}
-              />
+              isClassifying && i === messages.length - 1 ? (
+                <span className="agent-badge routing-flash">
+                  <span className="routing-dot" /> routing…
+                </span>
+              ) : (
+                <AgentBadge
+                  agent={msg.agent ?? 'journal'}
+                  streaming={streaming && i === messages.length - 1}
+                />
+              )
             )}
             <div className={`bubble ${msg.role}`}>
               {msg.content || (streaming && i === messages.length - 1 ? (

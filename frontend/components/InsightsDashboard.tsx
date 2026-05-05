@@ -12,6 +12,7 @@ interface MoodLog {
 
 interface InsightsDashboardProps {
   userId: string;
+  onAskLumen?: () => void;
 }
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000';
@@ -20,7 +21,7 @@ const MOOD_EMOJI: Record<string, string> = {
   anxious: '😰', sad: '😔', okay: '😐', good: '🙂', great: '😊',
 };
 
-export default function InsightsDashboard({ userId }: InsightsDashboardProps) {
+export default function InsightsDashboard({ userId, onAskLumen }: InsightsDashboardProps) {
   const [moodLogs, setMoodLogs] = useState<MoodLog[]>([]);
   const [weekSummary, setWeekSummary] = useState<string>('');
   const [loading, setLoading] = useState(true);
@@ -166,8 +167,15 @@ export default function InsightsDashboard({ userId }: InsightsDashboardProps) {
           ✨ Ask Lumen about your patterns
         </p>
         <p className="lumen-prompt-sub">
-          Switch to Chat and ask: <em>&quot;What patterns do you see in my journal?&quot;</em>
+          See what your past week reveals — Lumen searches your actual journal history.
         </p>
+        <button
+          className="lumen-ask-btn"
+          onClick={onAskLumen}
+          id="lumen-ask-btn"
+        >
+          Ask Lumen now →
+        </button>
       </div>
 
       {/* Empty state */}
