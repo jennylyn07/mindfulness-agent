@@ -193,6 +193,7 @@ Every Memory WRITE call and SAVE_ENTRY parse runs via `asyncio.ensure_future()` 
 - **Every GPT call degrades gracefully.** Memory read failure → empty string, chat continues. Orchestrator failure → falls back to "journal". Lumen RAG failure → responds from memory context alone.
 - **Azure Functions own habit and mood data.** FastAPI proxies internally. The frontend knows one URL. CORS is configured in one place.
 - **Streaming is end-to-end.** SK `invoke_stream()` → FastAPI `StreamingResponse` → `fetch + getReader()` in Next.js. No buffering, no polling.
+- **Autonomy within guardrails — by design.** The Orchestrator is a deterministic router (temp=0, 4 categories) — its job is consistency, not creativity. The specialists (Sage, River, Grove, Lumen) are autonomous: GPT decides the content, tone, which exercise to suggest, what pattern to surface, which facts to store. Guardrails (system prompts, fact scoring, SAVE_ENTRY markers) constrain *style and format*, not the reasoning itself. This is the correct architecture for a production AI system.
 
 ---
 
@@ -205,7 +206,7 @@ Every Memory WRITE call and SAVE_ENTRY parse runs via `asyncio.ensure_future()` 
 | Azure AI Search | search-jmagno-2026 | RAG knowledge base — 14 embedded journal entries, hybrid search |
 | Azure Cosmos DB | cosmos-jmagno-2026 | 5 collections: users, user_memory, journal_entries, mood_logs, habits |
 | Azure Functions v2 | mindflow-functions | Habit CRUD + mood logging + weekly pre-warm timer trigger |
-| Azure App Service | mindflow-app | Next.js 14 frontend (Node 20 LTS) |
+| Azure App Service | mindflow-app | Provisioned target for Next.js 14 frontend — not yet deployed (blocked by free subscription quota; see Known Limitations) |
 
 ---
 
@@ -384,8 +385,8 @@ mindfulness-agent/
 
 This project was built with assistance from the following AI tools, as required by Hackathon Rules Section 5 — Generative AI Tools:
 
-- **Claude (Anthropic)** — architecture planning, code generation, debugging, documentation, and prompt engineering
-- **Windsurf (Codeium)** — code execution, file editing, and live repo verification against actual codebase
+- **Claude (Anthropic)** — initial architecture planning, code generation, debugging, and prompt engineering
+- **Antigravity / Google Gemini (Google DeepMind)** — live code editing, codebase verification, documentation, and final pre-demo enhancements
 - **GPT-4o via Azure AI Foundry** — all runtime agent responses (Sage, River, Grove, Lumen, Orchestrator, Memory Agent)
 
 All code was reviewed, tested, and integrated by the participant. All development occurred during the official hackathon period (April 2 – May 3, 2026). No AI-generated assets contain sensitive, confidential, or proprietary information.
