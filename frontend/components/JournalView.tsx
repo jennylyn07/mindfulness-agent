@@ -16,6 +16,7 @@ interface JournalEntry {
 
 interface JournalViewProps {
   userId: string;
+  isActive?: boolean;
 }
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000';
@@ -49,7 +50,7 @@ function formatDate(iso: string): { day: string; time: string; full: string } {
   return { day: full, time, full };
 }
 
-export default function JournalView({ userId }: JournalViewProps) {
+export default function JournalView({ userId, isActive }: JournalViewProps) {
   const [entries, setEntries]     = useState<JournalEntry[]>([]);
   const [loading, setLoading]     = useState(true);
   const [error, setError]         = useState(false);
@@ -58,9 +59,15 @@ export default function JournalView({ userId }: JournalViewProps) {
   const [editingEntryId, setEditingEntryId] = useState<string | null>(null);
   const [editSummary, setEditSummary]       = useState('');
 
+  // Initial fetch + manual retry
   useEffect(() => {
     fetchEntries();
   }, [retryCount]);
+
+  // Re-fetch whenever Journal tab becomes active (catches River entries created via chat)
+  useEffect(() => {
+    if (isActive) fetchEntries();
+  }, [isActive]);
 
   async function fetchEntries() {
     setLoading(true);

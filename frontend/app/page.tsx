@@ -122,7 +122,7 @@ export default function Home() {
         {/* Journal — lazy mount on first visit, stays mounted after */}
         {visitedTabs.current.has('journal') && (
           <div className={`tab-panel ${tab === 'journal' ? 'tab-panel-active' : ''}`}>
-            <JournalView userId={USER_ID} />
+            <JournalView userId={USER_ID} isActive={tab === 'journal'} />
           </div>
         )}
 
