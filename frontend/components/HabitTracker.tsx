@@ -15,6 +15,7 @@ interface Habit {
 
 interface HabitTrackerProps {
   userId: string;
+  isActive?: boolean;
 }
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000';
@@ -23,7 +24,7 @@ function todayUTC(): string {
   return new Date().toISOString().split('T')[0];
 }
 
-export default function HabitTracker({ userId }: HabitTrackerProps) {
+export default function HabitTracker({ userId, isActive }: HabitTrackerProps) {
   const [habits, setHabits] = useState<Habit[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -36,9 +37,15 @@ export default function HabitTracker({ userId }: HabitTrackerProps) {
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const today = todayUTC();
 
+  // Initial fetch
   useEffect(() => {
     fetchHabits();
   }, []);
+
+  // Re-fetch whenever the Habits tab becomes active (catches habits created via chat)
+  useEffect(() => {
+    if (isActive) fetchHabits();
+  }, [isActive]);
 
   async function fetchHabits() {
     setLoading(true);

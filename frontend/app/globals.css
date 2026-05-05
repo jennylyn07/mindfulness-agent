@@ -1873,6 +1873,7 @@ code, pre, .font-mono {
   padding: 0.55rem 0.8rem;
   max-width: 90%;
   word-break: break-word;
+  white-space: pre-wrap;
   animation: fadeIn 0.2s ease-out;
 }
 

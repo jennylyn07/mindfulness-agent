@@ -174,3 +174,12 @@ async def get_habits(user_id: str) -> list[dict]:
         enable_cross_partition_query=False,
     ))
     return items
+
+
+async def create_habit(habit_doc: dict) -> dict:
+    """
+    Upsert a new habit document into the habits container.
+    Called by _parse_and_create_habit in chat.py (Grove CREATE_HABIT flow).
+    The doc must already have id, userId, name, why set by the caller.
+    """
+    return _container("habits").upsert_item(habit_doc)

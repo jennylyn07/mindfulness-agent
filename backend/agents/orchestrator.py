@@ -14,9 +14,10 @@ _FALLBACK = OrchestratorResult(
 )
 
 
-async def classify(message: str) -> OrchestratorResult:
+async def classify(message: str, conversation_history: list[dict] | None = None) -> OrchestratorResult:
     """
     One JSON-mode LLM call to classify the user's intent.
+    Accepts optional conversation_history to apply the CONTINUITY RULE.
     Returns OrchestratorResult. Never raises — returns fallback on any error.
     """
     try:
@@ -33,10 +34,21 @@ async def classify(message: str) -> OrchestratorResult:
             api_version=os.getenv("AZURE_OPENAI_API_VERSION", "2024-02-01"),
         )
 
+        # Build messages: system + last 6 history turns (enough for continuity)
+        # + current user message
+        history_msgs = []
+        if conversation_history:
+            for turn in conversation_history[-6:]:
+                role = turn.get("role", "")
+                content = turn.get("content", "")
+                if role in ("user", "assistant") and content:
+                    history_msgs.append({"role": role, "content": content})
+
         response = await client.chat.completions.create(
             model=os.getenv("AZURE_OPENAI_DEPLOYMENT", "gpt-4o"),
             messages=[
                 {"role": "system", "content": ORCHESTRATOR_PROMPT},
+                *history_msgs,
                 {"role": "user", "content": message},
             ],
             response_format={"type": "json_object"},

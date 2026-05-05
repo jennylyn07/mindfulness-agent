@@ -40,12 +40,13 @@ export default function ChatWindow({ userId, presetMessage, onPresetConsumed }: 
 
   // Auto-send preset message (from Lumen button or low-mood Sage prompt)
   useEffect(() => {
-    if (presetMessage) {
-      onPresetConsumed?.();
-      // Small delay so tab switch animation completes first
-      const t = setTimeout(() => sendMessage(presetMessage), 120);
-      return () => clearTimeout(t);
-    }
+    if (!presetMessage) return;
+    const msg = presetMessage; // capture before any re-render
+    const t = setTimeout(() => {
+      onPresetConsumed?.(); // consume AFTER firing — prevents React cleanup from cancelling the timeout
+      sendMessage(msg);
+    }, 150);
+    return () => clearTimeout(t);
   }, [presetMessage]);
 
   const conversationHistory = messages.map((m) => ({

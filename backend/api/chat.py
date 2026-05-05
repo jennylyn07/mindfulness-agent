@@ -19,7 +19,6 @@ import uuid
 import os
 from datetime import datetime, timezone
 
-import httpx
 from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 from semantic_kernel.contents import ChatHistory
@@ -31,13 +30,16 @@ from backend.providers import cosmos_repository as db
 
 router = APIRouter()
 
-_SAVE_START = "[SAVE_ENTRY]"
-_SAVE_END   = "[/SAVE_ENTRY]"
+_SAVE_START  = "[SAVE_ENTRY]"
+_SAVE_END    = "[/SAVE_ENTRY]"
 _HABIT_START = "[CREATE_HABIT]"
 _HABIT_END   = "[/CREATE_HABIT]"
 
-_FUNCTIONS_HABIT_URL = os.getenv("FUNCTIONS_HABIT_URL", "http://localhost:7071")
-_DEMO_USER_ID        = os.getenv("DEMO_USER_ID", "demo-user-001")
+# Hold back enough chars to catch a partial start-marker for EITHER block.
+# Must be >= the longest start marker so a leading '[' is never flushed early.
+_HOLD = max(len(_SAVE_START), len(_HABIT_START))  # 14
+
+_DEMO_USER_ID = os.getenv("DEMO_USER_ID", "demo-user-001")
 
 
 def _chunk_text(chunk) -> str:
@@ -151,8 +153,9 @@ async def _parse_and_save_entry(buffer: str, user_id: str) -> None:
 async def _parse_and_create_habit(buffer: str, user_id: str) -> None:
     """
     Extract the [CREATE_HABIT] block from Grove's response buffer,
-    parse name/why/targetTime, and POST to the habits proxy (Azure Functions).
+    parse name/why/targetTime, and write directly to Cosmos via the repository.
     Runs as a background task via ensure_future — never blocks the stream.
+    Uses the same direct-write pattern as _parse_and_save_entry (no HTTP hop).
     """
     try:
         start_idx = buffer.find(_HABIT_START)
@@ -175,27 +178,26 @@ async def _parse_and_create_habit(buffer: str, user_id: str) -> None:
             print("[Grove] CREATE_HABIT block missing name or why — skipping")
             return
 
-        payload = {
+        habit_doc = {
+            "id": str(uuid.uuid4()),
             "userId": user_id,
             "name": name,
             "why": why,
             "frequency": "daily",
             "targetTime": target_time or "",
             "durationMins": 0,
+            "logs": [],
+            "currentStreak": 0,
+            "longestStreak": 0,
+            "active": True,
         }
 
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            r = await client.post(
-                f"{_FUNCTIONS_HABIT_URL}/api/habits",
-                json=payload,
-            )
-            if r.status_code in (200, 201):
-                print(f"[Grove] Created habit '{name}' for {user_id}")
-            else:
-                print(f"[Grove] Habit create returned {r.status_code}: {r.text[:120]}")
+        await db.create_habit(habit_doc)
+        print(f"[Grove] Created habit '{name}' for {user_id}")
 
     except Exception as e:
         print(f"[Grove] _parse_and_create_habit failed: {e}")
+
 
 
 # ── /chat route ────────────────────────────────────────────
@@ -218,7 +220,10 @@ async def chat(request: ChatRequest):
                 )
                 print(f"[Orchestrator] agentOverride={request.agentOverride} — skipping classify")
             else:
-                classification = await orchestrator.classify(request.message)
+                classification = await orchestrator.classify(
+                    request.message,
+                    conversation_history=request.conversationHistory,
+                )
                 print(
                 f"[Orchestrator] agent={classification.agent} "
                 f"mood={classification.mood} urgency={classification.urgency}"
@@ -255,7 +260,6 @@ async def chat(request: ChatRequest):
             buffer = ""
             in_save_block  = False
             in_habit_block = False
-            _HOLD = len(_SAVE_START)  # hold back 13 chars to catch partial tags
 
             # Yield agent name as first token so frontend can show agent badge
             yield f"[AGENT:{classification.agent}]\n"
@@ -299,12 +303,30 @@ async def chat(request: ChatRequest):
                         asyncio.ensure_future(
                             _parse_and_save_entry(buffer, request.userId)
                         )
+                        yield "\n\n✓ Entry saved to your Journal."
                         break
 
                     if in_habit_block and _HABIT_END in buffer:
+                        # Extract the habit name to show in the confirmation
+                        _hname = ""
+                        try:
+                            _hstart = buffer.index(_HABIT_START) + len(_HABIT_START)
+                            _hend   = buffer.index(_HABIT_END)
+                            for _ln in buffer[_hstart:_hend].strip().splitlines():
+                                if _ln.strip().startswith("name:"):
+                                    _hname = _ln.partition(":")[2].strip()
+                                    break
+                        except Exception:
+                            pass
                         asyncio.ensure_future(
                             _parse_and_create_habit(buffer, request.userId)
                         )
+                        if _hname:
+                            _display = _hname[0].upper() + _hname[1:]
+                            _confirm = f"\n\n✓ \"{_display}\" has been added to your Habits tab."
+                        else:
+                            _confirm = "\n\n✓ Your new habit has been added to your Habits tab."
+                        yield _confirm
                         break
 
                 # Flush remaining held-back content if no marker was encountered

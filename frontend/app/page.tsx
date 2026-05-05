@@ -115,7 +115,7 @@ export default function Home() {
         {/* Habits — lazy mount on first visit, stays mounted after */}
         {visitedTabs.current.has('habits') && (
           <div className={`tab-panel ${tab === 'habits' ? 'tab-panel-active' : ''}`}>
-            <HabitTracker userId={USER_ID} />
+            <HabitTracker userId={USER_ID} isActive={tab === 'habits'} />
           </div>
         )}
 

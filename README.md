@@ -375,7 +375,7 @@ mindfulness-agent/
 ├── docs/
 │   ├── agents.md                   ← Agent design and prompt philosophy
 │   └── architecture.md             ← Full architecture with sequence diagrams
-├── DEVLOG.md                       ← 17-phase dev log and learning reports
+├── DEVLOG.md                       ← 18-phase dev log and learning reports
 └── DEMO_SCRIPT.md                  ← 5-minute demo walkthrough with fallback lines
 ```
 

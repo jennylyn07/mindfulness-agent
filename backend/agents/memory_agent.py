@@ -161,7 +161,16 @@ async def write(
         if raw.startswith("```"):
             raw = raw.split("\n", 1)[-1]          # drop opening ```json line
             raw = raw.rsplit("```", 1)[0].strip()  # drop closing ``` line
-        extracted = json.loads(raw)
+        # Try to parse — LLM occasionally omits outer braces
+        extracted: dict = {}
+        for _attempt in (raw, f"{{{raw}}}"):
+            try:
+                _parsed = json.loads(_attempt)
+                if isinstance(_parsed, dict):
+                    extracted = _parsed
+                    break
+            except json.JSONDecodeError:
+                continue
         new_facts = extracted.get("facts", [])
 
         if not new_facts:

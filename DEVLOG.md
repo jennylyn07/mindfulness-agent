@@ -1087,3 +1087,79 @@ Three things protect against this: (1) the prompt explicitly says "never append 
 
 *Status: All 5 pre-demo enhancements complete. System integrity maintained — no existing pipeline broken. Ready for demo video.*
 
+
+---
+
+---
+
+## Phase 18 — Habit Creation Bug Fixes: Routing Continuity, State Machine, Direct Write, UI Sync
+
+### Dev Log
+
+**What this session addressed**
+
+Three distinct categories of bugs were preventing the habit creation flow from working reliably:
+1. **Routing drift** — the Orchestrator misclassified WHY answers mid-flow, breaking Grove's conversation state
+2. **Habit save failures** — `_parse_and_create_habit` silently failing; habits confirmed but not persisted
+3. **UI desync** — the Habits tab not refreshing after a habit was created via chat; Grove chat head forgetting all conversation history on every turn
+
+**What got built / fixed**
+
+| Fix | Root cause | Resolution |
+|---|---|---|
+| Orchestrator CONTINUITY RULE | When a user answered "why" with emotional content (e.g. "calm my mind"), the Orchestrator classified the message as Sage, abandoning the in-progress habit creation flow. No history was passed to `classify()`. | Added CONTINUITY RULE to `ORCHESTRATOR_PROMPT`: if the last 6 turns contain an unanswered habit question, the current message is a habit reply regardless of keywords. Updated `orchestrator.py` `classify()` to accept and inject `conversation_history`. Passed `request.conversationHistory` from `chat.py`. |
+| Grove state machine — SCAN HISTORY FIRST | Grove's prompt lacked explicit instructions to scan prior turns before asking for name/WHY. If the user's WHY response arrived, Grove would reset to "What habit would you like to build?" because it treated each call as stateless. | Rewrote `HABIT_PROMPT` in `backend/prompts/habit.py` with an explicit two-state machine: `NAME_FOUND` / `WHY_FOUND`. Prompt now opens with: "Before responding, scan the full conversation history for a habit name and a WHY. If both are found, emit `[CREATE_HABIT]` immediately — do not ask again." |
+| HabitCoach `conversationHistory: []` hardcoded | `HabitCoach.tsx` `send()` always passed an empty array for `conversationHistory`. Grove received no prior turns, entered STATE A on every turn, and looped forever asking "What habit would you like to build?" | Built real `conversationHistory` from `messages` state before each send — same pattern as `ChatWindow`. Grove/assistant messages map to `role: "assistant"`, user messages to `role: "user"`. |
+| `[` character leaking into stream | `_HOLD = len("[SAVE_ENTRY]") = 12`. `[CREATE_HABIT]` is 14 chars. When a streaming chunk arrived containing `[CREATE_HABIT` (13 chars, no closing `]`), the `[` fell outside the 12-char hold window and was flushed to the frontend. | Changed to `_HOLD = max(len(_SAVE_START), len(_HABIT_START)) = 14`. Moved to a module-level constant (removed the local duplicate inside the generator). |
+| `_parse_and_create_habit` silently failing | Function made an HTTP POST to `localhost:7071/api/habits` (Azure Functions) via `httpx`. Despite Azure Functions running, the call failed silently — environment variable mismatch or CORS issue. No error surfaced because all exceptions were caught and logged only. | Eliminated the HTTP hop entirely. Added `create_habit(habit_doc: dict)` to `cosmos_repository.py`. `_parse_and_create_habit` now calls `await db.create_habit(habit_doc)` directly — same pattern as `_parse_and_save_entry` for journal entries. Removed `httpx` import and `_FUNCTIONS_HABIT_URL` constant from `chat.py`. |
+| No confirmation message visible to user | After the `[CREATE_HABIT]` block was parsed and the generator broke, no text was yielded confirming success. The habit saved silently. | After `asyncio.ensure_future(_parse_and_create_habit(...))`, yield a deterministic confirmation string. Habit name is extracted from the block and title-cased: `✓ "Read 10 pages a day" has been added to your Habits tab.` Journal saves also get `✓ Entry saved to your Journal.` |
+| Habits tab stale after chat creation | `HabitTracker` only fetched on mount (`useEffect(..., [])`). Switching from Chat to Habits after creating a habit showed the old list until browser refresh. | Added `isActive?: boolean` prop to `HabitTracker`. A second `useEffect(..., [isActive])` calls `fetchHabits()` whenever `isActive` flips to `true`. `page.tsx` passes `isActive={tab === 'habits'}`. |
+| MemoryAgent WRITE fails with JSON error | Memory agent's LLM call occasionally returned JSON without outer braces (e.g. `\n  "facts": [...]` instead of `{"facts": [...]}`), causing `json.loads()` to fail and logging `[MemoryAgent] WRITE failed` on every habit turn. | Replaced single `json.loads(raw)` with a three-attempt fallback: try `raw` as-is → try `{raw}` wrapped → fall back to `{}`. Each attempt validates that the result is a `dict`. |
+| `\n\n` and `**bold**` not rendering in grove panel | `grove-float-bubble` CSS had `word-break: break-word` but no `white-space: pre-wrap`. The confirmation `\n\n✓ "Name"...` collapsed to a single line. Markdown `**bold**` rendered as literal asterisks. | Added `white-space: pre-wrap` to `.grove-float-bubble`. Changed confirmation format from `**{name}**` (markdown) to `"{Name}"` (quoted, title-cased) — plain text that renders correctly without a markdown parser. |
+
+**Streaming pipeline change**
+
+`_parse_and_save_entry` (journal) and `_parse_and_create_habit` (habit) now both write directly to Cosmos via the repository layer. Neither depends on Azure Functions being reachable from within the backend process. Azure Functions remains the authoritative path for frontend-initiated operations (HabitTracker "+", log, unlog, delete) — the direct write is an internal-only shortcut for the background task that runs after streaming ends.
+
+**Files changed**
+
+| File | Change |
+|---|---|
+| `backend/prompts/orchestrator.py` | CONTINUITY RULE — routes WHY replies to `habit` regardless of emotional keywords |
+| `backend/agents/orchestrator.py` | `classify(message, history)` — injects last 6 turns into classification prompt |
+| `backend/api/chat.py` | `_HOLD=14`; removed `httpx` and `_FUNCTIONS_HABIT_URL`; `_parse_and_create_habit` rewrites to direct Cosmos write; named confirmation yields for both journal and habit |
+| `backend/prompts/habit.py` | SCAN HISTORY FIRST state machine; `NAME_FOUND`/`WHY_FOUND` explicit states |
+| `backend/providers/cosmos_repository.py` | Added `create_habit(habit_doc)` for direct write from chat pipeline |
+| `backend/agents/memory_agent.py` | Three-attempt JSON parse fallback prevents WRITE failures on malformed LLM output |
+| `frontend/components/HabitCoach.tsx` | `conversationHistory` built from `messages` state (was hardcoded `[]`) |
+| `frontend/components/HabitTracker.tsx` | `isActive` prop → re-fetch on tab switch |
+| `frontend/app/page.tsx` | `isActive={tab === 'habits'}` passed to `HabitTracker` |
+| `frontend/app/globals.css` | `white-space: pre-wrap` on `.grove-float-bubble` |
+| `README.md` | DEVLOG phase count updated: 17 → 18 |
+
+**Commit**
+- `fix: habit creation pipeline — routing continuity, state machine, direct Cosmos write, HabitCoach history, UI sync`
+
+---
+
+### Learning Report (Plain Language)
+
+**Why did the HabitCoach FAB loop forever while the main Chat tab worked?**
+
+Both use the same backend — the difference was entirely in what `conversationHistory` each sent. `ChatWindow` maintained a proper history array and passed it on every request, so Grove could read prior turns and track state. `HabitCoach.tsx` hardcoded `conversationHistory: []`, so Grove received a blank slate on every message — it saw only the current message with no context, concluded it was in STATE A, and asked "What habit would you like to build?" every time. One `[]` caused the entire flow to loop indefinitely.
+
+**Why does _parse_and_create_habit now write directly to Cosmos instead of calling Azure Functions?**
+
+The function runs as a background task (`asyncio.ensure_future`) after streaming ends — it's internal to the FastAPI process. Making an outbound HTTP call from inside that process to Azure Functions introduces a network hop, an additional failure surface (what if Azure Functions is slow?), and an environment dependency (`FUNCTIONS_HABIT_URL` must be correct and the service must be reachable). Writing directly via the repository eliminates all three risks. `_parse_and_save_entry` for journal entries already used this pattern — habit creation now follows the same design. The authoritative, externally-facing write path (HabitTracker UI → FastAPI → Azure Functions → Cosmos) is unchanged.
+
+**Why is `_HOLD` set to the longest marker and not just the longest start token?**
+
+The hold window determines how many characters are kept in the buffer before being yielded to the frontend. Its purpose is: if a streaming chunk ends mid-marker, don't yield the partial marker — it would appear as raw text. The window must be at least as wide as the longest possible partial prefix of any marker. `[CREATE_HABIT]` is 14 characters. If `_HOLD` is only 12 (the length of `[SAVE_ENTRY]`), a 13-character partial `[CREATE_HABIT` would be wider than the hold window — the `[` gets flushed immediately. Setting `_HOLD = max(...)` ensures the window is always wide enough for whichever marker is longest, regardless of which block the model is currently writing.
+
+**Why does the confirmation message come from the backend instead of the LLM?**
+
+The LLM produces the warm coaching response — it varies in wording, length, and tone, which is desirable. The confirmation that a habit was saved is a system fact, not a conversational response — it should be exact, deterministic, and always present. If the LLM were asked to include it, it might omit it, rephrase it vaguely, or embed it mid-sentence. Yielding `✓ "Read 10 pages a day" has been added to your Habits tab.` from the backend guarantees the user always sees a clear, accurate confirmation with the actual habit name — regardless of what the model said before the `[CREATE_HABIT]` block.
+
+---
+
+*Status: Habit creation flow end-to-end verified. Habits save to Cosmos, confirm in chat, appear immediately on Habits tab switch. MemoryAgent write failures resolved. Grove FAB conversation continuity restored.*

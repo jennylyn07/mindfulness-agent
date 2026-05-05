@@ -115,10 +115,17 @@ export default function HabitCoach({ habits, userId }: { habits: Habit[]; userId
     setMessages((prev) => [...prev, { role: 'grove', text: '' }]);
 
     try {
+      // Build conversation history from all messages BEFORE this send
+      // (same pattern as ChatWindow — must be captured before state update)
+      const conversationHistory = messages.map((m) => ({
+        role: m.role === 'grove' ? 'assistant' : 'user',
+        content: m.text,
+      }));
+
       const res = await fetch(`${API_URL}/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: text, userId, agentOverride: 'habit', conversationHistory: [] }),
+        body: JSON.stringify({ message: text, userId, agentOverride: 'habit', conversationHistory }),
       });
       if (!res.body) throw new Error('No body');
       const reader = res.body.getReader();
