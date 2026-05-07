@@ -33,6 +33,7 @@ ENDPOINT = os.getenv("COSMOS_ENDPOINT")
 KEY = os.getenv("COSMOS_KEY")
 DB_NAME = os.getenv("COSMOS_DB_NAME", "mindflow")
 USER_ID = os.getenv("DEMO_USER_ID", "demo-user-001")
+SEED_ANCHOR_DATE = os.getenv("SEED_ANCHOR_DATE", "2026-05-07")
 
 if not ENDPOINT or not KEY:
     print("[ERROR] COSMOS_ENDPOINT and COSMOS_KEY must be set in backend/.env")
@@ -42,11 +43,21 @@ if not ENDPOINT or not KEY:
 
 # ── Helpers ───────────────────────────────────────────────
 
+def _seed_anchor_utc() -> datetime:
+    try:
+        parsed = datetime.fromisoformat(SEED_ANCHOR_DATE)
+    except ValueError:
+        parsed = datetime.fromisoformat(f"{SEED_ANCHOR_DATE}T12:00:00")
+
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
+
 def days_ago(n: int) -> str:
-    return (datetime.now(timezone.utc) - timedelta(days=n)).isoformat()
+    return (_seed_anchor_utc() - timedelta(days=n)).isoformat()
 
 def date_str_days_ago(n: int) -> str:
-    return (datetime.now(timezone.utc) - timedelta(days=n)).strftime("%Y-%m-%d")
+    return (_seed_anchor_utc() - timedelta(days=n)).strftime("%Y-%m-%d")
 
 def det_id(collection: str, key: str) -> str:
     """Deterministic UUID — same inputs always produce the same ID.

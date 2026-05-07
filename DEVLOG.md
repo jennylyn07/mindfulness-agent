@@ -1233,3 +1233,39 @@ Hidden memory can feel "magical" when it works — but uncomfortable when it doe
 **Why did the new fact not show up in responses even though it was stored?**
 
 Because the Memory Agent has a strict context budget — it only injects a small subset of facts into the prompt. If seeded facts have higher importance scores, they can crowd out newly added facts. The fix is to always include the newest user-added (`manual`) fact so edits feel immediate.
+
+---
+
+---
+
+## Phase 19 — Demo Seed Anchor Date + Bulk Re-Index
+
+### Dev Log
+
+**What we set out to do**
+- Make demo data deterministic and aligned with the current demo date
+- Ensure Lumen RAG demo content in Azure AI Search is refreshed after reseeding
+
+**What got built / changed**
+- `seed/seed.py`
+  - Added `SEED_ANCHOR_DATE` to anchor seeded timestamps and habit log dates to a fixed ISO date
+  - Default `SEED_ANCHOR_DATE` is `2026-05-07` so demo "day-0" always lands on May 7 unless overridden
+
+**Demo runbook (reseed + RAG refresh)**
+```
+python seed/cleanup.py
+python seed/seed.py
+python seed/bulk_index.py
+```
+
+---
+
+### Learning Report (Plain Language)
+
+**Why anchor seed data to a fixed date instead of using "today"?**
+
+Seed scripts that use the current date drift over time — the exact same demo ends up showing different days on the calendar, which can be confusing right before a presentation. Anchoring the seed to a fixed date makes the calendar, journal timeline, and habit logs deterministic.
+
+**Why run bulk_index after reseeding?**
+
+Lumen’s RAG uses Azure AI Search. If you reseed Cosmos but don’t re-index, AI Search can still contain stale embeddings/documents from the previous seed run. Running `seed/bulk_index.py` purges old docs and re-indexes the new journal entries so retrieval matches the current demo data.
