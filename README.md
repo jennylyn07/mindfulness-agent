@@ -98,6 +98,8 @@ Receives every user message and classifies intent into one of four categories �
 
 The invisible agent that makes every other agent feel like it knows you. Before every specialist response, it fetches stored facts, themes, breakthroughs, preferences, and a weekly narrative from Cosmos DB — assembled into an 800-token context block injected into the specialist's system prompt. After every response, a second GPT-4o call extracts new facts from the exchange. Facts scored ≥0.6 are stored; facts <0.6 are discarded. Stale facts (>14 days unreferenced) decay by 0.05. Total capped at 12 facts per user to prevent context bloat. Generates a `weekSummary` narrative TTL-gated to 7 days — surfaced in the Insights tab Weekly Reflection card.
 
+Users can also manage this memory directly in the UI via the Insights tab **"🧠 Your memory"** panel — view, add, edit, and delete facts, or disable memory entirely. When memory is disabled (`memoryEnabled=false`), the system stops injecting memory context into specialist prompts and stops writing new facts.
+
 **Technology:** GPT-4o · Azure Cosmos DB · Fact scoring + decay + dedup (60-char prefix check) · `asyncio.ensure_future()` non-blocking writes · JSON fence-strip guard
 
 ---

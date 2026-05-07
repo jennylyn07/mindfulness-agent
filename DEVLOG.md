@@ -1163,3 +1163,73 @@ The LLM produces the warm coaching response — it varies in wording, length, an
 ---
 
 *Status: Habit creation flow end-to-end verified. Habits save to Cosmos, confirm in chat, appear immediately on Habits tab switch. MemoryAgent write failures resolved. Grove FAB conversation continuity restored.*
+
+---
+
+---
+
+## Phase 17 — User-Visible Memory Controls (Facts CRUD + Toggle)
+
+### Dev Log
+
+**What we set out to do**
+- Make the Memory Agent's stored facts user-visible and editable
+- Add full CRUD for memory facts + a global toggle to disable memory
+- Ensure the UI changes actually sync to Cosmos DB (no local-only state)
+
+**What got built**
+- `backend/api/memory.py` — NEW memory management router
+  - `GET /memory` — returns `user_memory` (creates shell doc if missing)
+  - `PATCH /memory/toggle` — flips `memoryEnabled` on the memory doc
+  - `POST /memory/facts` — add a fact (UI defaults `source="manual"`)
+  - `PATCH /memory/facts/{fact_id}` — edit a fact's content
+  - `DELETE /memory/facts/{fact_id}` — remove a fact
+  - Backfills missing fact IDs for older seeded facts on read (upsert after generation)
+- `backend/main.py` — registers `memory.router`
+- `backend/models/schemas.py`
+  - `UserMemory.memoryEnabled: bool` (default true)
+  - `MemoryFact.id: str` so facts can be edited/deleted deterministically
+- `backend/agents/memory_agent.py`
+  - Respects `memoryEnabled`:
+    - READ returns empty context when disabled
+    - WRITE is a no-op when disabled
+    - `rebuild_week_summary()` returns empty string when disabled
+  - Manual fact priority fix:
+    - Inject top facts by importance PLUS the newest `source="manual"` fact, so UI edits are felt immediately even with seeded high-importance facts
+- `frontend/components/MemoryPanel.tsx` — NEW UI panel
+  - View / add / edit / delete facts
+  - Toggle "Remember things about me" (`memoryEnabled`)
+  - All operations call `/memory` endpoints and update UI from the server response
+- `frontend/components/InsightsDashboard.tsx` — embeds MemoryPanel as a collapsible "🧠 Your memory" section
+- `frontend/app/globals.css` — Memory panel styles
+- `frontend/app/layout.tsx` — hydration mismatch suppression (extension-injected DOM attributes)
+- `.gitignore` — ignore local-only `azure-functions/.python_packages/` + `QA_CHECKLIST.md`
+
+**What broke and how it was fixed**
+
+| Problem | What happened | Fix |
+|---|---|---|
+| Newly added UI fact was saved but not reflected in agent replies | Memory Agent injected only the top facts by importance; seeded facts crowded out new low-importance facts | Manual fact is now tagged `source="manual"` and the Memory Agent always includes the newest manual fact in context |
+| Next.js hydration mismatch warning | Browser extension injected an attribute onto `<body>` before hydration (`cz-shortcut-listen`) | Added `suppressHydrationWarning` on `<html>` + `<body>` |
+
+**Verified working**
+```
+POST /memory/facts { content: "I like strawberry", source: "manual" }
+→ Fact persists in Cosmos and is visible in GET /memory
+→ Next chat response reflects the new memory context
+
+PATCH /memory/toggle { enabled: false }
+→ Memory READ returns empty context and no new facts are written
+```
+
+---
+
+### Learning Report (Plain Language)
+
+**Why let users view and edit their memory facts?**
+
+Hidden memory can feel "magical" when it works — but uncomfortable when it doesn't. A simple control panel gives users transparency and agency: they can correct wrong assumptions, remove sensitive details, and choose when they want personalization.
+
+**Why did the new fact not show up in responses even though it was stored?**
+
+Because the Memory Agent has a strict context budget — it only injects a small subset of facts into the prompt. If seeded facts have higher importance scores, they can crowd out newly added facts. The fix is to always include the newest user-added (`manual`) fact so edits feel immediate.

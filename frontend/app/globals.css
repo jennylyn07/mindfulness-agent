@@ -1433,6 +1433,127 @@ code, pre, .font-mono {
   line-height: 1.5;
 }
 
+.memory-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.memory-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.memory-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  color: var(--text-mid);
+  font-size: 0.9rem;
+}
+
+.memory-toggle input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--sage);
+}
+
+.memory-toggle-label {
+  font-weight: 700;
+}
+
+.memory-saving {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.memory-disabled-note {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.memory-facts {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.memory-empty {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.memory-fact-row {
+  background: white;
+  border-radius: 14px;
+  padding: 0.75rem 0.75rem 0.65rem;
+  box-shadow: var(--clay-up);
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.memory-fact-text {
+  font-size: 0.9rem;
+  color: var(--text-mid);
+  line-height: 1.55;
+}
+
+.memory-fact-input {
+  width: 100%;
+  border-radius: 12px;
+  border: 1px solid rgba(0,0,0,0.06);
+  padding: 0.6rem 0.7rem;
+  font-size: 0.9rem;
+  color: var(--text-mid);
+  background: var(--warm-white);
+  box-shadow: var(--clay-in);
+  resize: vertical;
+}
+
+.memory-fact-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.memory-btn {
+  border: none;
+  border-radius: 12px;
+  padding: 0.45rem 0.7rem;
+  background: white;
+  box-shadow: var(--clay-up);
+  color: var(--text-mid);
+  font-weight: 700;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+.memory-btn:active {
+  box-shadow: var(--clay-in);
+}
+
+.memory-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.memory-btn-ghost {
+  background: transparent;
+}
+
+.memory-btn-danger {
+  color: var(--accent);
+}
+
+.memory-add {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
 /* ── Journal View ─────────────────────────────────────────── */
 .journal-list {
   display: flex;

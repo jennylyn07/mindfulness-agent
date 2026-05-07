@@ -25,6 +25,7 @@ class User(BaseModel):
 
 
 class MemoryFact(BaseModel):
+    id: str = ""
     content: str
     source: str                  # "journal_entry" | "mood_log" | "habit_log"
     importance: float            # 0.0 – 1.0
@@ -42,6 +43,7 @@ class LearnedPreferences(BaseModel):
 class UserMemory(BaseModel):
     id: str                      # == userId (one doc per user)
     userId: str
+    memoryEnabled: bool = True
     facts: list[MemoryFact] = Field(default_factory=list)
     weekSummary: str = ""
     weekSummaryUpdatedAt: str = ""

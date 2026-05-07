@@ -11,6 +11,7 @@ inside async generators on Python 3.11 (Decision 3 correction, 2026-04-28).
 import json
 import asyncio
 import os
+import uuid
 from datetime import datetime, timezone, timedelta
 from typing import Optional
 
@@ -56,6 +57,9 @@ async def read(
         if not memory:
             return ""
 
+        if memory.get("memoryEnabled") is False:
+            return ""
+
         display_name = user.get("displayName", "friend") if user else "friend"
         hour = datetime.now(timezone.utc).hour
         time_of_day = (
@@ -64,12 +68,23 @@ async def read(
             else "evening"
         )
 
-        # Sort facts by importance DESC, take top 5 for context budget
+        all_facts = memory.get("facts", []) or []
+
+        # Sort facts by importance DESC, take top 4 for context budget
         facts = sorted(
-            memory.get("facts", []),
+            all_facts,
             key=lambda f: f.get("importance", 0),
             reverse=True,
-        )[:5]
+        )[:4]
+
+        # Always include the most recent manually-added fact (UI) so user edits are felt immediately.
+        # This prevents a new manual fact from being crowded out by seeded high-importance facts.
+        manual_facts = [f for f in all_facts if (f.get("source") == "manual")]
+        if manual_facts:
+            manual_facts.sort(key=lambda f: f.get("createdAt", ""), reverse=True)
+            newest_manual = manual_facts[0]
+            if newest_manual not in facts:
+                facts.append(newest_manual)
 
         facts_block = "\n".join(
             f"- {f['content']} (importance: {f.get('importance', 0):.2f})"
@@ -128,6 +143,10 @@ async def write(
       Total facts capped at 12 → oldest/lowest-importance dropped
     """
     try:
+        memory_existing = await db.get_user_memory(user_id)
+        if memory_existing and memory_existing.get("memoryEnabled") is False:
+            return
+
         from openai import AsyncAzureOpenAI
         from urllib.parse import urlparse as _up
         import os
@@ -177,9 +196,12 @@ async def write(
             return
 
         # Fetch current memory (create shell if not found)
-        memory = await db.get_user_memory(user_id)
+        memory = memory_existing or await db.get_user_memory(user_id)
         if not memory:
             memory = _empty_memory(user_id)
+
+        if memory.get("memoryEnabled") is False:
+            return
 
         now_iso = datetime.now(timezone.utc).isoformat()
 
@@ -196,6 +218,7 @@ async def write(
             if content_key in existing_contents:
                 continue
             existing_facts.append({
+                "id": fact.get("id") or str(uuid.uuid4()),
                 "content": fact["content"],
                 "source": fact.get("source", "conversation"),
                 "importance": importance,
@@ -231,6 +254,9 @@ async def rebuild_week_summary(user_id: str) -> str:
         memory = await db.get_user_memory(user_id)
         if not memory:
             memory = _empty_memory(user_id)
+
+        if memory.get("memoryEnabled") is False:
+            return ""
 
         now = datetime.now(timezone.utc)
         updated_at_str = memory.get("weekSummaryUpdatedAt", "")
@@ -302,6 +328,7 @@ def _empty_memory(user_id: str) -> dict:
     return {
         "id": user_id,
         "userId": user_id,
+        "memoryEnabled": True,
         "facts": [],
         "weekSummary": "",
         "weekSummaryUpdatedAt": now,

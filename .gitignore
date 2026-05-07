@@ -35,6 +35,9 @@ next-env.d.ts
 # Azure Functions build output
 azure-functions/dist/
 
+# Azure Functions local python packages
+azure-functions/.python_packages/
+
 # ── Python ─────────────────────────────────────────────────
 __pycache__/
 *.py[cod]
@@ -56,3 +59,6 @@ local.settings.json
 
 # Presentation notes — not for repo
 DEMO_SCRIPT.md
+
+# Local QA notes
+QA_CHECKLIST.md

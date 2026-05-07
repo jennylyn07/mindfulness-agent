@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import MoodSparkline from './MoodSparkline';
 import CalendarView from './CalendarView';
+import MemoryPanel from './MemoryPanel';
 
 interface MoodLog {
   score: number;
@@ -27,6 +28,7 @@ export default function InsightsDashboard({ userId, onAskLumen }: InsightsDashbo
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [calendarOpen, setCalendarOpen] = useState(true);
+  const [memoryOpen, setMemoryOpen] = useState(false);
 
   function loadInsights() {
     setLoading(true);
@@ -141,6 +143,23 @@ export default function InsightsDashboard({ userId, onAskLumen }: InsightsDashbo
         {calendarOpen && (
           <div style={{ marginTop: '0.75rem' }}>
             <CalendarView userId={userId} />
+          </div>
+        )}
+      </div>
+
+      {/* Memory (collapsible) */}
+      <div className="insights-card">
+        <button
+          className="journal-expand-btn"
+          onClick={() => setMemoryOpen((v) => !v)}
+          aria-expanded={memoryOpen}
+          style={{ width: '100%' }}
+        >
+          {memoryOpen ? '▲' : '▼'} 🧠 Your memory
+        </button>
+        {memoryOpen && (
+          <div style={{ marginTop: '0.75rem' }}>
+            <MemoryPanel userId={userId} />
           </div>
         )}
       </div>
