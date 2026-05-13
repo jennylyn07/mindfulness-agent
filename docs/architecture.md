@@ -27,6 +27,8 @@ MindFlow is a **6-layer system** with clean separation between presentation, API
 │  │  /insights       │   │  /mood → httpx →              │   │
 │  │  /user           │   │    mindflow-functions.net      │   │
 │  │  /grove/nudge    │   └───────────────────────────────┘   │
+│  │  /calendar       │                                        │
+│  │  /memory         │                                        │
 │  └──────────────────┘                                        │
 └────────────────────────┬────────────────────────────────────┘
                          │
@@ -126,6 +128,8 @@ FastAPI Backend
   ├── /insights       → Cosmos DB + Memory Agent (internal)
   ├── /user           → Cosmos DB direct (internal)
   ├── /grove/nudge    → GPT-4o direct (internal)
+  ├── /calendar       → Cosmos DB direct (internal)
+  ├── /memory         → Cosmos DB direct (internal)
   ├── /habits/*       → httpx → Azure Functions /api/habits/*
   └── /mood           → httpx → Azure Functions /api/mood
 ```
@@ -141,6 +145,8 @@ CORS is configured on FastAPI only (`allow_origins=[localhost:3000, FRONTEND_URL
 
 2. Orchestrator.classify(message, conversationHistory)
    → {agent, mood, urgency, confidence}
+   → agent routing keys: "mindfulness" | "journal" | "habit" | "insights"
+     (persona names Sage/River/Grove/Lumen are resolved in _get_specialist)
    → CONTINUITY RULE: if last assistant message contains a habit-creation question → force `habit`
    → SKIP if agentOverride is set (saves ~300ms)
 
@@ -150,8 +156,9 @@ CORS is configured on FastAPI only (`allow_origins=[localhost:3000, FRONTEND_URL
 
 4. _get_specialist(agent, memory_context)
    → Sage, River: synchronous factory (object construction only)
-   → Grove: async factory (must await Cosmos habit read first)
-   → Lumen: async factory (must await AI Search call first)
+   → Grove: async factory — calls db.get_habits() directly (Cosmos, not Functions proxy)
+             injects live habit list + today's completions + streaks into system prompt
+   → Lumen: async factory (must await AI Search hybrid search first)
 
 5. yield "[AGENT:{agent}]\n"    ← first chunk — frontend extracts + strips
                                    used to set agent badge before content arrives
