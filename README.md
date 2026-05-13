@@ -220,7 +220,6 @@ Every Memory WRITE call, SAVE_ENTRY parse, and CREATE_HABIT parse runs via `asyn
 | Azure AI Search | search-jmagno-2026 | RAG knowledge base — 14 embedded journal entries, hybrid search |
 | Azure Cosmos DB | cosmos-jmagno-2026 | 5 collections: users, user_memory, journal_entries, mood_logs, habits |
 | Azure Functions v2 | mindflow-functions | Habit CRUD + mood logging + weekly pre-warm timer trigger |
-| Azure App Service | mindflow-app | Provisioned target for Next.js 14 frontend — not yet deployed (blocked by free subscription quota; see Known Limitations) |
 
 ---
 
@@ -274,9 +273,9 @@ Calendar window verified: all returned mood logs fall within `now_utc - timedelt
 
 ## Known Limitations
 
-1. **Backend runs locally** — App Service deployment blocked by free subscription quota. Full Azure integration is live (Cosmos, AI Search, Azure Functions, OpenAI all connected and verified). Local compute only for the backend runtime. *Production fix: Azure App Service B1 (B1 minimum — F1 kills streaming connections).*
+1. **Backend and frontend run locally** — All five Azure services (OpenAI, AI Search, Cosmos DB, Functions) are live and connected. The backend (FastAPI) and frontend (Next.js) run on local compute for the demo. *Production fix: deploy backend to Azure App Service B1 (B1 minimum — F1 kills streaming connections) and frontend to Azure Static Web Apps or App Service.*
 
-2. **BACKEND_URL placeholder** — Azure Functions weekly timer pre-warm requires the real App Service URL in portal App Settings. On-demand `weekSummary` generation via `GET /insights` works correctly without it. *Production fix: set `BACKEND_URL` in Azure Functions App Settings after App Service deploy.*
+2. **BACKEND_URL not set** — Azure Functions weekly timer trigger pre-warms `weekSummary` by calling the FastAPI backend's `GET /insights`. This requires `BACKEND_URL` to be set in Azure Functions App Settings — which points to the deployed backend URL. On-demand `weekSummary` generation via `GET /insights` works correctly without it. *Production fix: set `BACKEND_URL` after backend is deployed.*
 
 3. **Single demo user** — System is fully multi-user (all queries are `userId`-scoped) but seeded for one demo account (`demo-user-001`). *Production fix: authentication layer (Azure AD B2C or similar) + per-user onboarding flow.*
 
