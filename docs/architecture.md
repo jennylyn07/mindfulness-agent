@@ -11,7 +11,7 @@ MindFlow is a **6-layer system** with clean separation between presentation, API
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │  PRESENTATION LAYER                                          │
-│  Next.js 16 (App Router) · TypeScript · Vanilla CSS          │
+│  Next.js 16 (App Router) · TypeScript · TailwindCSS 3.4     │
 │  Tabs: Chat · Journal · Habits · Insights                    │
 │  Hosted: Azure App Service (Node.js 20 LTS) or local        │
 └────────────────────────┬────────────────────────────────────┘
@@ -92,8 +92,8 @@ MindFlow is a **6-layer system** with clean separation between presentation, API
 │  · POST /api/mood                                           │
 │                                                             │
 │  Timer trigger (Sunday 08:00 UTC):                         │
-│  · Fetches all user IDs from Cosmos                        │
-│  · Calls GET /insights?userId=... for each user concurrently│
+│  · Fetches user IDs from Cosmos (user_memory container)    │
+│  · Calls GET /insights?userId=...&days=14 concurrently     │
 │  · Pre-warms weekSummary before users open the app         │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -141,7 +141,7 @@ CORS is configured on FastAPI only (`allow_origins=[localhost:3000, FRONTEND_URL
 
 2. Orchestrator.classify(message, conversationHistory)
    → {agent, mood, urgency, confidence}
-   → CONTINUITY RULE: if last 6 turns contain unanswered habit question → force `habit`
+   → CONTINUITY RULE: if last assistant message contains a habit-creation question → force `habit`
    → SKIP if agentOverride is set (saves ~300ms)
 
 3. memory_agent.read(userId, mood, urgency)
@@ -149,7 +149,8 @@ CORS is configured on FastAPI only (`allow_origins=[localhost:3000, FRONTEND_URL
    → Returns "" on failure (graceful degradation)
 
 4. _get_specialist(agent, memory_context)
-   → Sage, River, Grove: synchronous factory (object construction only)
+   → Sage, River: synchronous factory (object construction only)
+   → Grove: async factory (must await Cosmos habit read first)
    → Lumen: async factory (must await AI Search call first)
 
 5. yield "[AGENT:{agent}]\n"    ← first chunk — frontend extracts + strips
@@ -190,10 +191,10 @@ id          → String (key)
 userId      → String (filterable, not searchable)
 content     → String (searchable — raw journal entry text)
 embedding   → Collection(Edm.Single) — 1536 dimensions, cosine similarity
-mood        → String
-sentiment   → String
-themes      → String
-timestamp   → String
+mood        → String (filterable)
+sentiment   → String (filterable)
+themes      → Collection(Edm.String) (filterable, facetable)
+timestamp   → DateTimeOffset (filterable, sortable)
 ```
 
 ### Hybrid search query
@@ -215,6 +216,8 @@ Hybrid search finds semantically relevant entries even when no exact keywords ma
 
 ### Indexing
 `bulk_index.py` runs once to embed all journal entries. New entries saved by River via `_parse_and_save_entry()` go to Cosmos only — they are **not** automatically re-indexed into AI Search. Re-indexing requires re-running `seed/bulk_index.py` manually. Before re-seeding, `purge_index(userId)` is called to remove stale orphaned documents.
+
+> **Production fix:** Add `asyncio.ensure_future(search_provider.bulk_index([entry]))` in `_parse_and_save_entry()` after the Cosmos write. Same fire-and-forget pattern already used for memory writes — zero stream impact if it fails.
 
 ---
 
@@ -290,3 +293,4 @@ FUNCTIONS_WORKER_RUNTIME=python
 | 📅 Calendar integration | Microsoft Graph API. Grove reads busy-week data to adjust habit coaching strategy. |
 | 🔐 Auth | Azure AD B2C. Currently using `DEMO_USER_ID` env var. Cosmos partition key is already `/userId` — multi-user is a config change, not an architectural one. |
 | 📈 Advanced analytics | Mood heatmap, habit completion matrix, per-theme emotional arc visualization. |
+| 🔍 Auto-index on save | Add `asyncio.ensure_future(search_provider.bulk_index([entry]))` to `_parse_and_save_entry()` — new journal entries appear in Lumen's RAG immediately, not just after manual re-index. One line of code. |
