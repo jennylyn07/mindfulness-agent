@@ -11,7 +11,7 @@ MindFlow is a **6-layer system** with clean separation between presentation, API
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │  PRESENTATION LAYER                                          │
-│  Next.js 14 (App Router) · TypeScript · Vanilla CSS          │
+│  Next.js 16 (App Router) · TypeScript · Vanilla CSS          │
 │  Tabs: Chat · Journal · Habits · Insights                    │
 │  Hosted: Azure App Service (Node.js 20 LTS) or local        │
 └────────────────────────┬────────────────────────────────────┘
@@ -82,7 +82,7 @@ MindFlow is a **6-layer system** with clean separation between presentation, API
 │  SERVERLESS / SCHEDULED LAYER                                │
 │  Azure Functions v2 Python (mindflow-functions.azurewebsites)│
 │                                                              │
-│  HTTP routes (6 total):                                      │
+│  HTTP routes (7 total):                                      │
 │  · GET  /api/habits                                         │
 │  · POST /api/habits                                         │
 │  · PATCH /api/habits/{id}/log    (add today, recalc streak) │
@@ -214,7 +214,7 @@ results = search_client.search(
 Hybrid search finds semantically relevant entries even when no exact keywords match. "Why do I feel anxious at work?" will surface "I felt overwhelmed during the project deadline" — zero keyword overlap, high vector similarity.
 
 ### Indexing
-`bulk_index.py` runs once to embed all journal entries. `search_provider.bulk_index()` is also called by River's `_parse_and_save_entry()` whenever a new journal entry is saved (async, non-blocking). Before re-seeding, `purge_index(userId)` is called to remove stale orphaned documents.
+`bulk_index.py` runs once to embed all journal entries. New entries saved by River via `_parse_and_save_entry()` go to Cosmos only — they are **not** automatically re-indexed into AI Search. Re-indexing requires re-running `seed/bulk_index.py` manually. Before re-seeding, `purge_index(userId)` is called to remove stale orphaned documents.
 
 ---
 
