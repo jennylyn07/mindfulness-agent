@@ -73,7 +73,7 @@ Fetches `user_memory` document from Cosmos DB and assembles `{memoryContext}` �
 
 Context block includes:
 - User's display name + current mood + urgency + time of day
-- Top 5 facts sorted by importance (capped at ~800 tokens total)
+- Top 4 facts sorted by importance (capped at ~800 tokens total)
 - Recurring themes + breakthroughs
 - `weekSummary` (AI-generated narrative from last 10 journal entries)
 - Learned preferences: preferred tone, best journaling time, responds well to, avoids
@@ -95,7 +95,7 @@ Additional rules:
 - **Deduplication:** First 60 characters compared (case-insensitive). Near-duplicate facts are skipped.
 - **Cap:** Maximum 12 facts per user. Lowest-importance facts dropped when cap is exceeded.
 - **Fence-strip guard:** If the model wraps its JSON in markdown code fences (` ```json ... ``` `), they are stripped before `json.loads()`.
-- **Three-attempt JSON parse fallback:** Tries `json.loads(raw)` → `json.loads(f"{{{raw}}}")` → falls back to `{}`. Prevents WRITE failures when the LLM omits outer braces on the JSON object.
+- **Two-attempt JSON parse fallback:** Tries `json.loads(raw)` → `json.loads(f"{{{raw}}}")` → falls back to `{}`. Prevents WRITE failures when the LLM omits outer braces on the JSON object.
 
 READ is **awaited synchronously** (must complete before the specialist runs). WRITE runs via `asyncio.ensure_future()` — non-blocking, after the stream completes.
 
@@ -131,7 +131,7 @@ Core Capability 1 from problem statement. Guides grounding exercises and mindful
 2. Extended exhale (4-6)
 3. 5-4-3-2-1 grounding
 4. Body scan
-5. STOP technique (Stop, Take a breath, Observe, Proceed)
+5. One mindful breath (single slow intentional breath — low bar equals higher completion rate)
 
 ### Design principles
 - Never clinical language
@@ -156,17 +156,17 @@ Core Capability 2 from problem statement. Reflective journaling companion. Defau
 - Opens with **one** contextual question based on mood and memory themes — never generic
 - Reflects back key phrases without interpreting them
 - Asks one follow-up question at a time
+- After 1–2 meaningful exchanges, offers to save: *"Would you like to save this entry?"* — only when the user agrees does it append the `[SAVE_ENTRY]` block
 - Writes full 2–3 sentence response **before** the `[SAVE_ENTRY]` block
 
 ### SAVE_ENTRY block (invisible to user)
 River appends a structured block to every response:
 ```
 [SAVE_ENTRY]
-content: <River's full response text>
-summary: <one-line first-person summary>
-moodAtEntry: <detected mood word>
-sentiment: positive | neutral | negative
-themes: <comma-separated list>
+mood: <one of: anxious, sad, okay, good, great>
+sentiment: <positive | neutral | negative>
+themes: <comma-separated list of 2-5 themes>
+summary: <one sentence, first person — e.g. "I realised my anxiety spikes when I don't sleep enough.">
 [/SAVE_ENTRY]
 ```
 

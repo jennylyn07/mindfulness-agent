@@ -31,7 +31,7 @@ User Message (chat)
         │
         ▼
 ┌───────────────────────────────────────────────────────┐
-│                  Next.js 14 Frontend                  │
+│                  Next.js 16 Frontend                  │
 │     fetch + ReadableStream   ·   NEXT_PUBLIC_API_URL  │
 └──────────────────────────┬────────────────────────────┘
                            │  POST /chat
@@ -116,7 +116,7 @@ Receives the user's classified urgency level and tailors its response — high u
 ### 📖 Agent 4 — River (Journal & Reflection)
 **Role:** Journaling companion with automatic structured entry extraction
 
-Responds as an empathetic journaling partner — asks one specific, contextual question based on the user's mood and history. After every response, River appends a `[SAVE_ENTRY]...[/SAVE_ENTRY]` block containing mood, sentiment, themes, and a first-person summary. The streaming pipeline intercepts this block in real time — it never appears in the user's chat bubble — parses it, and saves it as a Cosmos journal entry. Entries appear in the Journal tab with River's full response expandable and can be edited inline (edits trigger a background Memory re-extraction).
+Responds as an empathetic journaling partner — asks one specific, contextual question based on the user's mood and history. After 1–2 meaningful exchanges, River offers to save: *"Would you like to save this entry?"* — and only when the user agrees does it append a `[SAVE_ENTRY]...[/SAVE_ENTRY]` block containing mood, sentiment, themes, and a first-person summary. The streaming pipeline intercepts this block in real time — it never appears in the user's chat bubble — parses it, and saves it as a Cosmos journal entry. Entries appear in the Journal tab with River's full response expandable and can be edited inline (edits trigger a background Memory re-extraction).
 
 **Technology:** GPT-4o · SAVE_ENTRY buffer parser in async generator · Azure Cosmos DB · `asyncio.ensure_future()` non-blocking save · `PATCH /journal/{id}` with memory sync
 
@@ -172,11 +172,10 @@ This week: Mood trending upward (4→9). Meditation streak: 5 days.
 **River SAVE_ENTRY block (intercepted mid-stream, never shown to user):**
 ```
 [SAVE_ENTRY]
-content: <River's full response text>
-summary: I felt overwhelmed and noticed physical tension in my shoulders.
-moodAtEntry: anxious
+mood: anxious
 sentiment: negative
 themes: work stress, deadline pressure
+summary: I felt overwhelmed and noticed physical tension in my shoulders.
 [/SAVE_ENTRY]
 ```
 
