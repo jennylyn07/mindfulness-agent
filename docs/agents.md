@@ -160,7 +160,7 @@ Core Capability 2 from problem statement. Reflective journaling companion. Defau
 - Writes full 2–3 sentence response **before** the `[SAVE_ENTRY]` block
 
 ### SAVE_ENTRY block (invisible to user)
-River appends a structured block to every response:
+When the user agrees to save, River appends this structured block at the end of its response (invisible to the user):
 ```
 [SAVE_ENTRY]
 mood: <one of: anxious, sad, okay, good, great>
