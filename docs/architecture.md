@@ -155,10 +155,13 @@ CORS is configured on FastAPI only (`allow_origins=[localhost:3000, FRONTEND_URL
    → Returns "" on failure (graceful degradation)
 
 4. _get_specialist(agent, memory_context)
-   → Sage, River: synchronous factory (object construction only)
-   → Grove: async factory — calls db.get_habits() directly (Cosmos, not Functions proxy)
-             injects live habit list + today's completions + streaks into system prompt
-   → Lumen: async factory (must await AI Search hybrid search first)
+   → Sage, River, Grove: synchronous factory (habit_agent.get_agent is def, not async)
+     · Grove path: _get_specialist first awaits db.get_habits() (Cosmos direct,
+       not Functions proxy), then calls the sync factory with live habit list,
+       today's completions, and streaks injected into the system prompt
+   → Lumen: async factory — insights_agent.get_agent is async def
+             awaits AI Search hybrid search + mood logs + habit stats
+             before the ChatCompletionAgent is constructed
 
 5. yield "[AGENT:{agent}]\n"    ← first chunk — frontend extracts + strips
                                    used to set agent badge before content arrives
